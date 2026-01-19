@@ -9,6 +9,7 @@ class Cart(models.Model):
     """
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return f"Cart {self.id} for {self.customer.fullname}"

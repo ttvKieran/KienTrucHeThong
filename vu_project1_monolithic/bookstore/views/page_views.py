@@ -29,3 +29,18 @@ def cart_page(request):
 def profile_page(request):
     """User profile page"""
     return render(request, 'bookstore/profile.html')
+
+
+def orders_page(request):
+    """Orders page"""
+    return render(request, 'bookstore/orders.html')
+
+
+def checkout_page(request):
+    """Checkout page"""
+    return render(request, 'bookstore/checkout.html')
+
+
+def recommendations_page(request):
+    """Recommendations page"""
+    return render(request, 'bookstore/recommendations.html')

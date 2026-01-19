@@ -8,6 +8,17 @@ from .serializers_module import (
     CartSerializer,
     CartItemSerializer,
     AddToCartSerializer,
+    RatingSerializer,
+    CreateRatingSerializer,
+    StaffSerializer,
+    CreateStaffSerializer,
+    ShippingSerializer,
+    PaymentSerializer,
+    CreatePaymentSerializer,
+    OrderSerializer,
+    OrderItemSerializer,
+    CreateOrderSerializer,
+    CreateOrderItemSerializer,
 )
 
 __all__ = [
@@ -19,6 +30,17 @@ __all__ = [
     'CartSerializer',
     'CartItemSerializer',
     'AddToCartSerializer',
+    'RatingSerializer',
+    'CreateRatingSerializer',
+    'StaffSerializer',
+    'CreateStaffSerializer',
+    'ShippingSerializer',
+    'PaymentSerializer',
+    'CreatePaymentSerializer',
+    'OrderSerializer',
+    'OrderItemSerializer',
+    'CreateOrderSerializer',
+    'CreateOrderItemSerializer',
 ]
 
 

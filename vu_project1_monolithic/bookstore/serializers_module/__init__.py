@@ -10,6 +10,25 @@ from .cart_serializers import (
     CartItemSerializer,
     AddToCartSerializer
 )
+from .rating_serializers import (
+    RatingSerializer,
+    CreateRatingSerializer
+)
+from .staff_serializers import (
+    StaffSerializer,
+    CreateStaffSerializer
+)
+from .shipping_serializers import ShippingSerializer
+from .payment_serializers import (
+    PaymentSerializer,
+    CreatePaymentSerializer
+)
+from .order_serializers import (
+    OrderSerializer,
+    OrderItemSerializer,
+    CreateOrderSerializer,
+    CreateOrderItemSerializer
+)
 
 __all__ = [
     'UserSerializer',
@@ -20,4 +39,15 @@ __all__ = [
     'CartSerializer',
     'CartItemSerializer',
     'AddToCartSerializer',
+    'RatingSerializer',
+    'CreateRatingSerializer',
+    'StaffSerializer',
+    'CreateStaffSerializer',
+    'ShippingSerializer',
+    'PaymentSerializer',
+    'CreatePaymentSerializer',
+    'OrderSerializer',
+    'OrderItemSerializer',
+    'CreateOrderSerializer',
+    'CreateOrderItemSerializer',
 ]

@@ -37,8 +37,18 @@
                             <i class="bi bi-book-half"></i> Books
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'recommendations' %}">
+                            <i class="bi bi-lightbulb"></i> Recommendations
+                        </a>
+                    </li>
                 </ul>
                 <ul class="navbar-nav">
+                    <li class="nav-item d-none" id="nav-orders">
+                        <a class="nav-link" href="{% url 'orders' %}">
+                            <i class="bi bi-bag-check"></i> Orders
+                        </a>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'cart' %}">
                             <i class="bi bi-cart3"></i> Cart
@@ -107,6 +117,7 @@
             document.getElementById('nav-auth').classList.toggle('d-none', loggedIn);
             document.getElementById('nav-profile').classList.toggle('d-none', !loggedIn);
             document.getElementById('nav-logout').classList.toggle('d-none', !loggedIn);
+            document.getElementById('nav-orders').classList.toggle('d-none', !loggedIn);
         }
 
         // Logout function
@@ -151,8 +162,15 @@
                     'Authorization': 'Token ' + token
                 }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    // Silently fail if user doesn't have customer profile
+                    return null;
+                }
+                return response.json();
+            })
             .then(data => {
+                if (!data) return;
                 const count = data.total_items || 0;
                 const badge = document.getElementById('cart-count');
                 if (count > 0) {
@@ -162,7 +180,10 @@
                     badge.classList.add('d-none');
                 }
             })
-            .catch(error => console.error('Error fetching cart:', error));
+            .catch(error => {
+                // Silently fail - don't show error to user
+                console.log('Cart not available');
+            });
         }
 
         // Initialize on page load
