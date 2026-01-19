@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  # API Gateway
+  api-gateway:
+    build: ./api_gateway
+    container_name: api-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=True
+      - USER_SERVICE_URL=http://user-service:8001
+      - BOOK_SERVICE_URL=http://book-service:8002
+      - CART_SERVICE_URL=http://cart-service:8003
+      - JWT_SECRET_KEY=microservices-jwt-secret-key-2024
+    depends_on:
+      - user-service
+      - book-service
+      - cart-service
+    networks:
+      - microservices-network
+    command: python manage.py runserver 0.0.0.0:8000
+
+  # User Service
+  user-service:
+    build: ./user_service
+    container_name: user-service
+    ports:
+      - "8001:8001"
+    environment:
+      - DEBUG=True
+      - USE_SQLITE=True
+      - JWT_SECRET_KEY=microservices-jwt-secret-key-2024
+    volumes:
+      - ./user_service:/app
+    networks:
+      - microservices-network
+
+  # Book Service
+  book-service:
+    build: ./book_service
+    container_name: book-service
+    ports:
+      - "8002:8002"
+    environment:
+      - DEBUG=True
+      - USE_SQLITE=True
+    volumes:
+      - ./book_service:/app
+    networks:
+      - microservices-network
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8002"
+
+  # Cart Service
+  cart-service:
+    build: ./cart_service
+    container_name: cart-service
+    ports:
+      - "8003:8003"
+    environment:
+      - DEBUG=True
+      - USE_SQLITE=True
+      - BOOK_SERVICE_URL=http://book-service:8002
+      - USER_SERVICE_URL=http://user-service:8001
+    volumes:
+      - ./cart_service:/app
+    networks:
+      - microservices-network
+    depends_on:
+      - book-service
+      - user-service
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8003"
+
+networks:
+  microservices-network:
+    driver: bridge

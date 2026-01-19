@@ -1,0 +1,158 @@
+{% extends 'bookstore/base.html' %}
+
+{% block title %}Books - Bookstore{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h2><i class="bi bi-book-half"></i> Book Catalog</h2>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <input type="text" id="searchInput" class="form-control" placeholder="Search books by title or author...">
+    </div>
+    <div class="col-md-4">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="inStockOnly">
+            <label class="form-check-label" for="inStockOnly">
+                In stock only
+            </label>
+        </div>
+    </div>
+</div>
+
+<div class="row" id="bookList">
+    <div class="col-12 text-center">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let allBooks = [];
+
+function loadBooks() {
+    const search = document.getElementById('searchInput').value;
+    const inStock = document.getElementById('inStockOnly').checked;
+    
+    let url = '/bookstore/api/books/?';
+    if (search) url += 'search=' + encodeURIComponent(search) + '&';
+    if (inStock) url += 'in_stock=true';
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            allBooks = data.books;
+            displayBooks(data.books);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('bookList').innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-danger">Error loading books. Please try again.</div>
+                </div>
+            `;
+        });
+}
+
+function displayBooks(books) {
+    const bookList = document.getElementById('bookList');
+    
+    if (books.length === 0) {
+        bookList.innerHTML = `
+            <div class="col-12">
+                <div class="alert alert-info">No books found.</div>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    books.forEach(book => {
+        const inStock = book.stock > 0;
+        html += `
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">${book.title}</h5>
+                        <p class="card-text">
+                            <strong>Author:</strong> ${book.author}<br>
+                            <strong>Stock:</strong> 
+                            <span class="badge ${inStock ? 'bg-success' : 'bg-danger'}">
+                                ${book.stock} available
+                            </span>
+                        </p>
+                        ${book.note ? `<p class="card-text text-muted small">${book.note}</p>` : ''}
+                    </div>
+                    <div class="card-footer bg-white">
+                        ${inStock ? `
+                            <button class="btn btn-primary btn-sm w-100" onclick="addToCart(${book.id}, '${book.title}')">
+                                <i class="bi bi-cart-plus"></i> Add to Cart
+                            </button>
+                        ` : `
+                            <button class="btn btn-secondary btn-sm w-100" disabled>
+                                Out of Stock
+                            </button>
+                        `}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    bookList.innerHTML = html;
+}
+
+function addToCart(bookId, bookTitle) {
+    const token = getToken();
+    if (!token) {
+        showAlert('Please login to add books to cart', 'warning');
+        setTimeout(() => {
+            window.location.href = '/bookstore/login';
+        }, 1500);
+        return;
+    }
+    
+    fetch('/bookstore/api/cart/add', {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Token ' + token,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            book_id: bookId,
+            quantity: 1
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.message || data.cart_item) {
+            showAlert(`"${bookTitle}" added to cart!`, 'success');
+            updateCartCount();
+        } else {
+            showAlert(data.error || 'Failed to add to cart', 'danger');
+        }
+    })
+    .catch(error => {
+        showAlert('An error occurred. Please try again.', 'danger');
+        console.error('Error:', error);
+    });
+}
+
+// Search functionality
+document.getElementById('searchInput').addEventListener('input', function() {
+    clearTimeout(this.searchTimeout);
+    this.searchTimeout = setTimeout(loadBooks, 300);
+});
+
+document.getElementById('inStockOnly').addEventListener('change', loadBooks);
+
+// Load books on page load
+loadBooks();
+</script>
+{% endblock %}

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Bookstore{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        main {
+            flex: 1;
+        }
+        .navbar-brand {
+            font-weight: bold;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'home' %}">
+                <i class="bi bi-book"></i> Bookstore
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'books' %}">
+                            <i class="bi bi-book-half"></i> Books
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'recommendations' %}">
+                            <i class="bi bi-lightbulb"></i> Recommendations
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item d-none" id="nav-orders">
+                        <a class="nav-link" href="{% url 'orders' %}">
+                            <i class="bi bi-bag-check"></i> Orders
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'cart' %}">
+                            <i class="bi bi-cart3"></i> Cart
+                            <span id="cart-count" class="badge bg-danger"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" id="nav-auth">
+                        <a class="nav-link" href="{% url 'login' %}">
+                            <i class="bi bi-box-arrow-in-right"></i> Login
+                        </a>
+                    </li>
+                    <li class="nav-item d-none" id="nav-profile">
+                        <a class="nav-link" href="{% url 'profile' %}">
+                            <i class="bi bi-person-circle"></i> Profile
+                        </a>
+                    </li>
+                    <li class="nav-item d-none" id="nav-logout">
+                        <a class="nav-link" href="#" onclick="logout()">
+                            <i class="bi bi-box-arrow-right"></i> Logout
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="py-4">
+        <div class="container">
+            <div id="alert-container"></div>
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <footer class="bg-light py-3 mt-auto">
+        <div class="container text-center text-muted">
+            <p class="mb-0">&copy; 2026 Bookstore. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Get token from localStorage
+        function getToken() {
+            return localStorage.getItem('token');
+        }
+
+        // Set token in localStorage
+        function setToken(token) {
+            localStorage.setItem('token', token);
+        }
+
+        // Remove token from localStorage
+        function removeToken() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+        }
+
+        // Check if user is logged in
+        function isLoggedIn() {
+            return !!getToken();
+        }
+
+        // Update navbar based on auth status
+        function updateNavbar() {
+            const loggedIn = isLoggedIn();
+            document.getElementById('nav-auth').classList.toggle('d-none', loggedIn);
+            document.getElementById('nav-profile').classList.toggle('d-none', !loggedIn);
+            document.getElementById('nav-logout').classList.toggle('d-none', !loggedIn);
+            document.getElementById('nav-orders').classList.toggle('d-none', !loggedIn);
+        }
+
+        // Logout function
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                const token = getToken();
+                fetch('/bookstore/api/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Token ' + token,
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(() => {
+                    removeToken();
+                    window.location.href = '/bookstore/login';
+                });
+            }
+        }
+
+        // Show alert message
+        function showAlert(message, type = 'success') {
+            const alertHtml = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            document.getElementById('alert-container').innerHTML = alertHtml;
+            setTimeout(() => {
+                document.getElementById('alert-container').innerHTML = '';
+            }, 5000);
+        }
+
+        // Update cart count
+        function updateCartCount() {
+            const token = getToken();
+            if (!token) return;
+
+            fetch('/bookstore/api/cart/', {
+                headers: {
+                    'Authorization': 'Token ' + token
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    // Silently fail if user doesn't have customer profile
+                    return null;
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (!data) return;
+                const count = data.total_items || 0;
+                const badge = document.getElementById('cart-count');
+                if (count > 0) {
+                    badge.textContent = count;
+                    badge.classList.remove('d-none');
+                } else {
+                    badge.classList.add('d-none');
+                }
+            })
+            .catch(error => {
+                // Silently fail - don't show error to user
+                console.log('Cart not available');
+            });
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateNavbar();
+            updateCartCount();
+        });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
