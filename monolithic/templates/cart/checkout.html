@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+{% block title %}Thanh toán{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom: 1.5rem;">💳 Thanh toán đơn hàng</h2>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+    <!-- Order Summary -->
+    <div>
+        <div class="card">
+            <h3 style="margin-bottom: 1rem;">Đơn hàng của bạn</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Sách</th>
+                        <th>Số lượng</th>
+                        <th>Giá</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in cart_items %}
+                    <tr>
+                        <td>{{ item.book.title }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>${{ item.book.price }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Shipping & Payment Form -->
+        <div class="card" style="margin-top: 1rem;">
+            <h3 style="margin-bottom: 1rem;">Thông tin giao hàng & thanh toán</h3>
+            
+            <form method="POST" action="{% url 'web_place_order' %}">
+                {% csrf_token %}
+                
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
+                        Phương thức giao hàng:
+                    </label>
+                    {% for shipping in shipping_methods %}
+                    <div style="padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 0.5rem;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="radio" name="shipping_id" value="{{ shipping.id }}" 
+                                   {% if forloop.first %}checked{% endif %}
+                                   onchange="updateTotal({{ shipping.fee }})"
+                                   style="margin-right: 0.5rem;">
+                            <span style="flex: 1;">
+                                <strong>{{ shipping.method_name }}</strong>
+                            </span>
+                            <span style="color: #27ae60;">+${{ shipping.fee }}</span>
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
+                        Phương thức thanh toán:
+                    </label>
+                    {% for payment in payment_methods %}
+                    <div style="padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 0.5rem;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="radio" name="payment_id" value="{{ payment.id }}" 
+                                   {% if forloop.first %}checked{% endif %}
+                                   style="margin-right: 0.5rem;">
+                            <strong>{{ payment.method_name }}</strong>
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <button type="submit" class="btn btn-success" style="width: 100%; padding: 1rem; font-size: 1.1rem;">
+                    ✅ Đặt hàng
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Price Summary -->
+    <div>
+        <div class="card">
+            <h3 style="margin-bottom: 1rem;">Tóm tắt đơn hàng</h3>
+            <div style="padding: 1rem 0; border-bottom: 1px solid #ddd;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span>Tạm tính:</span>
+                    <span id="subtotal">${{ subtotal }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Phí ship:</span>
+                    <span id="shipping-fee">${{ shipping_methods.0.fee|default:"0.00" }}</span>
+                </div>
+            </div>
+            <div style="padding: 1rem 0;">
+                <div style="display: flex; justify-content: space-between; font-size: 1.3rem;">
+                    <strong>Tổng cộng:</strong>
+                    <strong id="total" style="color: #27ae60;">${{ subtotal }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const subtotal = {{ subtotal }};
+    
+    function updateTotal(shippingFee) {
+        const total = subtotal + parseFloat(shippingFee);
+        document.getElementById('shipping-fee').textContent = '$' + shippingFee.toFixed(2);
+        document.getElementById('total').textContent = '$' + total.toFixed(2);
+    }
+    
+    // Set initial total
+    const firstShipping = document.querySelector('input[name="shipping_id"]:checked');
+    if (firstShipping) {
+        const fee = {{ shipping_methods.0.fee|default:"0" }};
+        updateTotal(fee);
+    }
+</script>
+{% endblock %}

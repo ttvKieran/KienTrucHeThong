@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block title %}Chi tiết đơn hàng #{{ order.id }}{% endblock %}
+
+{% block content %}
+<a href="{% url 'web_order_history' %}" class="btn btn-secondary" style="margin-bottom: 1rem;">← Quay lại</a>
+
+<h2 style="margin-bottom: 1.5rem;">📦 Chi tiết đơn hàng #{{ order.id }}</h2>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+    <div>
+        <!-- Order Items -->
+        <div class="card">
+            <h3 style="margin-bottom: 1rem;">Sản phẩm</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Sách</th>
+                        <th>Giá</th>
+                        <th>Số lượng</th>
+                        <th>Thành tiền</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in order_items %}
+                    <tr>
+                        <td>
+                            <strong>{{ item.book.title }}</strong><br>
+                            <small>{{ item.book.author }}</small>
+                        </td>
+                        <td>${{ item.book.price }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td><strong>${{ item.book.price|floatformat:2 }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div>
+        <!-- Order Info -->
+        <div class="card">
+            <h3 style="margin-bottom: 1rem;">Thông tin đơn hàng</h3>
+            
+            <p style="margin-bottom: 0.8rem;">
+                <strong>Ngày đặt:</strong> {{ order.order_date }}
+            </p>
+            <p style="margin-bottom: 0.8rem;">
+                <strong>Trạng thái:</strong>
+                <span style="padding: 0.3rem 0.8rem; border-radius: 4px;
+                             background: {% if order.status == 'Delivered' %}#d4edda{% elif order.status == 'Pending' %}#fff3cd{% else %}#d1ecf1{% endif %};
+                             color: {% if order.status == 'Delivered' %}#155724{% elif order.status == 'Pending' %}#856404{% else %}#0c5460{% endif %};">
+                    {{ order.status }}
+                </span>
+            </p>
+            <p style="margin-bottom: 0.8rem;">
+                <strong>Nhân viên xử lý:</strong> {{ order.staff.name }}
+            </p>
+            
+            <hr style="margin: 1rem 0; border: none; border-top: 1px solid #ddd;">
+            
+            <p style="margin-bottom: 0.8rem;">
+                <strong>Giao hàng:</strong> {{ order.shipping.method_name }}
+            </p>
+            <p style="margin-bottom: 0.8rem;">
+                <strong>Phí ship:</strong> ${{ order.shipping.fee }}
+            </p>
+            <p style="margin-bottom: 0.8rem;">
+                <strong>Thanh toán:</strong> {{ order.payment.method_name }}
+            </p>
+            <p style="margin-bottom: 0.8rem;">
+                <strong>Trạng thái TT:</strong> {{ order.payment.status }}
+            </p>
+            
+            <hr style="margin: 1rem 0; border: none; border-top: 1px solid #ddd;">
+            
+            <p style="font-size: 1.3rem; margin-top: 1rem;">
+                <strong>Tổng cộng:</strong> 
+                <strong style="color: #27ae60;">${{ order.total_price }}</strong>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

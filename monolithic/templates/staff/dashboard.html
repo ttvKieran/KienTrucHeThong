@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block title %}Quản lý kho - Staff Dashboard{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom: 1.5rem;">👨‍💼 Quản lý kho hàng</h2>
+
+<!-- Low Stock Alert -->
+{% if low_stock %}
+<div class="alert alert-danger" style="margin-bottom: 2rem;">
+    <strong>⚠️ Cảnh báo:</strong> Có {{ low_stock|length }} sách sắp hết hàng (< 10 cuốn)
+</div>
+{% endif %}
+
+<!-- Add New Book -->
+<div class="card">
+    <h3 style="margin-bottom: 1rem;">➕ Thêm sách mới</h3>
+    <form method="POST" action="{% url 'web_staff_add_book' %}">
+        {% csrf_token %}
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+            <div>
+                <label style="display: block; margin-bottom: 0.3rem;">Tên sách:</label>
+                <input type="text" name="title" required 
+                       style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 0.3rem;">Tác giả:</label>
+                <input type="text" name="author" required 
+                       style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 0.3rem;">Giá ($):</label>
+                <input type="number" name="price" step="0.01" required 
+                       style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 0.3rem;">Số lượng:</label>
+                <input type="number" name="stock_quantity" required 
+                       style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 0.3rem;">Danh mục:</label>
+                <select name="category_id" required 
+                        style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                    {% for category in categories %}
+                    <option value="{{ category.id }}">{{ category.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display: flex; align-items: flex-end;">
+                <button type="submit" class="btn btn-success" style="width: 100%;">Thêm sách</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Books Inventory -->
+<div class="card" style="margin-top: 2rem;">
+    <h3 style="margin-bottom: 1rem;">📚 Kho sách hiện tại</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Tên sách</th>
+                <th>Tác giả</th>
+                <th>Danh mục</th>
+                <th>Giá</th>
+                <th>Tồn kho</th>
+                <th>Hành động</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for book in books %}
+            <tr style="{% if book.stock_quantity < 10 %}background: #fff3cd;{% endif %}">
+                <td>{{ book.id }}</td>
+                <td><strong>{{ book.title }}</strong></td>
+                <td>{{ book.author }}</td>
+                <td>{{ book.category.name }}</td>
+                <td>${{ book.price }}</td>
+                <td>
+                    <form method="POST" action="{% url 'web_staff_update_stock' book.id %}" style="display: flex; gap: 0.5rem;">
+                        {% csrf_token %}
+                        <input type="number" name="stock_quantity" value="{{ book.stock_quantity }}" min="0"
+                               style="width: 70px; padding: 0.3rem; border: 1px solid #ddd; border-radius: 4px;">
+                        <button type="submit" class="btn" style="padding: 0.3rem 0.8rem;">💾</button>
+                    </form>
+                </td>
+                <td>
+                    <form method="POST" action="{% url 'web_staff_delete_book' book.id %}" style="display: inline;" 
+                          onsubmit="return confirm('Xác nhận xóa sách này?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger" style="padding: 0.3rem 0.8rem;">🗑️</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

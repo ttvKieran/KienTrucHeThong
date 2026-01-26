@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block title %}Lịch sử đơn hàng{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom: 1.5rem;">📋 Lịch sử đơn hàng</h2>
+
+{% if orders %}
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Mã đơn</th>
+                <th>Ngày đặt</th>
+                <th>Tổng tiền</th>
+                <th>Trạng thái</th>
+                <th>Giao hàng</th>
+                <th>Thanh toán</th>
+                <th>Hành động</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+            <tr>
+                <td><strong>#{{ order.id }}</strong></td>
+                <td>{{ order.order_date }}</td>
+                <td><strong>${{ order.total_price }}</strong></td>
+                <td>
+                    <span style="padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.9rem;
+                                 background: {% if order.status == 'Delivered' %}#d4edda{% elif order.status == 'Pending' %}#fff3cd{% else %}#d1ecf1{% endif %};
+                                 color: {% if order.status == 'Delivered' %}#155724{% elif order.status == 'Pending' %}#856404{% else %}#0c5460{% endif %};">
+                        {{ order.status }}
+                    </span>
+                </td>
+                <td>{{ order.shipping.method_name }}</td>
+                <td>{{ order.payment.method_name }}</td>
+                <td>
+                    <a href="{% url 'web_order_detail' order.id %}" class="btn btn-secondary" style="padding: 0.3rem 1rem;">
+                        Chi tiết
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-danger">
+    Chưa có đơn hàng nào. <a href="{% url 'web_home' %}">Mua sắm ngay!</a>
+</div>
+{% endif %}
+{% endblock %}

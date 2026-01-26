@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block title %}Giỏ hàng{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom: 1.5rem;">🛒 Giỏ hàng của bạn</h2>
+
+{% if cart_items %}
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Sách</th>
+                <th>Giá</th>
+                <th>Số lượng</th>
+                <th>Tổng</th>
+                <th>Hành động</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in cart_items %}
+            <tr>
+                <td>
+                    <strong>{{ item.book.title }}</strong><br>
+                    <small style="color: #7f8c8d;">{{ item.book.author }}</small>
+                </td>
+                <td>${{ item.book.price }}</td>
+                <td>
+                    <form method="POST" action="{% url 'web_update_cart_item' item.id %}" style="display: inline;">
+                        {% csrf_token %}
+                        <input type="number" name="quantity" value="{{ item.quantity }}" min="1" 
+                               max="{{ item.book.stock_quantity }}" 
+                               style="width: 60px; padding: 0.3rem; border: 1px solid #ddd; border-radius: 4px;"
+                               onchange="this.form.submit()">
+                    </form>
+                </td>
+                <td><strong>${{ item.book.price|floatformat:2 }}</strong></td>
+                <td>
+                    <form method="POST" action="{% url 'web_remove_from_cart' item.id %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger" style="padding: 0.3rem 1rem;">Xóa</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="3" style="text-align: right;"><strong>Tổng cộng:</strong></td>
+                <td><strong style="color: #27ae60; font-size: 1.2rem;">${{ total }}</strong></td>
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+    
+    <div style="margin-top: 2rem; display: flex; justify-content: space-between;">
+        <a href="{% url 'web_home' %}" class="btn btn-secondary">← Tiếp tục mua sắm</a>
+        <a href="{% url 'web_checkout' %}" class="btn btn-success">Thanh toán →</a>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-danger">
+    Giỏ hàng trống. <a href="{% url 'web_home' %}">Mua sắm ngay!</a>
+</div>
+{% endif %}
+{% endblock %}

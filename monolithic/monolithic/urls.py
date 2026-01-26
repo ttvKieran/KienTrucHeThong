@@ -1,0 +1,34 @@
+"""
+URL configuration for monolithic project.
+
+The `urlpatterns` list routes URLs to views. For more information please see:
+    https://docs.djangoproject.com/en/5.1/topics/http/urls/
+Examples:
+Function views
+    1. Add an import:  from my_app import views
+    2. Add a URL to urlpatterns:  path('', views.home, name='home')
+Class-based views
+    1. Add an import:  from other_app.views import Home
+    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
+Including another URLconf
+    1. Import the include() function: from django.urls import include, path
+    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+"""
+
+from django.contrib import admin
+from django.urls import path, include
+
+urlpatterns = [
+    path("admin/", admin.site.urls),
+    
+    # Frontend URLs (Web Interface)
+    path("web/", include('urls.frontend_urls')),
+    
+    # API URLs (REST API)
+    path("api/books/", include('urls.book_urls')),
+    path("api/customers/", include('urls.customer_url')),
+    path("api/orders/", include('urls.order_urls')),
+    path("api/staff/", include('urls.staff_urls')),
+    path("api/cart/", include('urls.cart_urls')),
+    path("api/recommendations/", include('urls.recommendation_urls')),
+]

@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ book.title }}{% endblock %}
+
+{% block content %}
+<a href="{% url 'web_home' %}" class="btn btn-secondary" style="margin-bottom: 1rem;">← Quay lại</a>
+
+<div class="card">
+    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem;">
+        <div style="background: #ecf0f1; height: 300px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+            <span style="font-size: 4rem;">📖</span>
+        </div>
+        
+        <div>
+            <h2 style="margin-bottom: 1rem; color: #2c3e50;">{{ book.title }}</h2>
+            <p style="font-size: 1.1rem; color: #7f8c8d; margin-bottom: 1rem;">
+                <strong>Tác giả:</strong> {{ book.author }}
+            </p>
+            <p style="margin-bottom: 1rem;">
+                <strong>Danh mục:</strong> 
+                <span style="background: #3498db; color: white; padding: 0.3rem 0.8rem; border-radius: 4px;">
+                    {{ book.category.name }}
+                </span>
+            </p>
+            <p style="font-size: 1.5rem; color: #27ae60; margin-bottom: 1rem;">
+                <strong>Giá: ${{ book.price }}</strong>
+            </p>
+            <p style="margin-bottom: 1rem; color: {% if book.stock_quantity > 10 %}#27ae60{% elif book.stock_quantity > 0 %}#e67e22{% else %}#e74c3c{% endif %};">
+                <strong>Tồn kho:</strong> {{ book.stock_quantity }} cuốn
+            </p>
+            
+            {% if avg_rating %}
+            <p style="margin-bottom: 1rem; color: #f39c12;">
+                <strong>⭐ Đánh giá:</strong> {{ avg_rating|floatformat:1 }}/5.0 ({{ ratings|length }} đánh giá)
+            </p>
+            {% endif %}
+            
+            <div style="margin-top: 2rem;">
+                {% if book.stock_quantity > 0 %}
+                <form method="POST" action="{% url 'web_add_to_cart' book.id %}">
+                    {% csrf_token %}
+                    <div style="display: flex; gap: 1rem; align-items: center;">
+                        <label>Số lượng:</label>
+                        <input type="number" name="quantity" value="1" min="1" max="{{ book.stock_quantity }}" 
+                               style="width: 80px; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                        <button type="submit" class="btn btn-success">🛒 Thêm vào giỏ</button>
+                    </div>
+                </form>
+                {% else %}
+                <button class="btn btn-danger" disabled>Hết hàng</button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 2rem;">
+    <h3 style="margin-bottom: 1rem;">Đánh giá từ khách hàng</h3>
+    {% if ratings %}
+    {% for rating in ratings %}
+    <div style="padding: 1rem; background: #f8f9fa; border-radius: 4px; margin-bottom: 0.5rem;">
+        <strong>{{ rating.customer.name }}</strong> - <span style="color: #f39c12;">⭐ {{ rating.score }}/5.0</span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p style="color: #7f8c8d;">Chưa có đánh giá.</p>
+    {% endif %}
+</div>
+
+{% if similar_books %}
+<div class="card" style="margin-top: 2rem;">
+    <h3 style="margin-bottom: 1rem;">Sách tương tự</h3>
+    <div class="grid">
+        {% for similar in similar_books %}
+        <div style="padding: 1rem; background: #f8f9fa; border-radius: 4px;">
+            <h4 style="margin-bottom: 0.5rem;">{{ similar.title }}</h4>
+            <p style="color: #7f8c8d;">{{ similar.author }}</p>
+            <p style="color: #27ae60;"><strong>${{ similar.price }}</strong></p>
+            <a href="{% url 'web_book_detail' similar.id %}" class="btn btn-secondary" style="margin-top: 0.5rem; width: 100%; text-align: center;">
+                Xem
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}
