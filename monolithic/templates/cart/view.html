@@ -5,62 +5,177 @@
 {% block content %}
 <h2 style="margin-bottom: 1.5rem;">🛒 Giỏ hàng của bạn</h2>
 
-{% if cart_items %}
-<div class="card">
-    <table>
-        <thead>
-            <tr>
-                <th>Sách</th>
-                <th>Giá</th>
-                <th>Số lượng</th>
-                <th>Tổng</th>
-                <th>Hành động</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in cart_items %}
-            <tr>
-                <td>
-                    <strong>{{ item.book.title }}</strong><br>
-                    <small style="color: #7f8c8d;">{{ item.book.author }}</small>
-                </td>
-                <td>${{ item.book.price }}</td>
-                <td>
-                    <form method="POST" action="{% url 'web_update_cart_item' item.id %}" style="display: inline;">
-                        {% csrf_token %}
-                        <input type="number" name="quantity" value="{{ item.quantity }}" min="1" 
-                               max="{{ item.book.stock_quantity }}" 
-                               style="width: 60px; padding: 0.3rem; border: 1px solid #ddd; border-radius: 4px;"
-                               onchange="this.form.submit()">
-                    </form>
-                </td>
-                <td><strong>${{ item.book.price|floatformat:2 }}</strong></td>
-                <td>
-                    <form method="POST" action="{% url 'web_remove_from_cart' item.id %}" style="display: inline;">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-danger" style="padding: 0.3rem 1rem;">Xóa</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-        <tfoot>
-            <tr>
-                <td colspan="3" style="text-align: right;"><strong>Tổng cộng:</strong></td>
-                <td><strong style="color: #27ae60; font-size: 1.2rem;">${{ total }}</strong></td>
-                <td></td>
-            </tr>
-        </tfoot>
-    </table>
+<div id="alert-container"></div>
+<div id="cartContainer"></div>
+
+<script>
+let currentUser = null;
+let cartData = null;
+
+// Kiểm tra user đăng nhập
+function checkAuth() {
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!user || user.type !== 'customer') {
+        window.location.href = '/web/login/';
+        return null;
+    }
+    currentUser = user;
+    return user;
+}
+
+// Tải giỏ hàng
+async function loadCart() {
+    const user = checkAuth();
+    if (!user) return;
     
-    <div style="margin-top: 2rem; display: flex; justify-content: space-between;">
-        <a href="{% url 'web_home' %}" class="btn btn-secondary">← Tiếp tục mua sắm</a>
-        <a href="{% url 'web_checkout' %}" class="btn btn-success">Thanh toán →</a>
-    </div>
-</div>
-{% else %}
-<div class="alert alert-danger">
-    Giỏ hàng trống. <a href="{% url 'web_home' %}">Mua sắm ngay!</a>
-</div>
-{% endif %}
+    try {
+        const response = await fetch(`/api/cart/${user.id}/`);
+        const data = await response.json();
+        
+        if (data.success) {
+            cartData = data.cart;
+            renderCart(data.cart);
+        } else {
+            showAlert('Không thể tải giỏ hàng!', 'danger');
+        }
+    } catch (error) {
+        showAlert('Có lỗi xảy ra!', 'danger');
+        console.error('Load cart error:', error);
+    }
+}
+
+// Render giỏ hàng
+function renderCart(cart) {
+    const container = document.getElementById('cartContainer');
+    
+    if (!cart.items || cart.items.length === 0) {
+        container.innerHTML = `
+            <div class="alert alert-danger">
+                Giỏ hàng trống. <a href="/web/">Mua sắm ngay!</a>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = `
+        <div class="card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Sách</th>
+                        <th>Giá</th>
+                        <th>Số lượng</th>
+                        <th>Tổng</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${cart.items.map(item => `
+                        <tr>
+                            <td>
+                                <strong>${item.book_title}</strong><br>
+                                <small style="color: #7f8c8d;">${item.book_author}</small>
+                            </td>
+                            <td>$${item.book_price}</td>
+                            <td>
+                                <input type="number" id="qty_${item.id}" value="${item.quantity}" min="1" 
+                                       max="${item.book_stock}" 
+                                       style="width: 60px; padding: 0.3rem; border: 1px solid #ddd; border-radius: 4px;"
+                                       onchange="updateCartItem(${item.id})">
+                            </td>
+                            <td><strong>$${item.subtotal}</strong></td>
+                            <td>
+                                <button onclick="removeCartItem(${item.id})" class="btn btn-danger" style="padding: 0.3rem 1rem;">Xóa</button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" style="text-align: right;"><strong>Tổng cộng:</strong></td>
+                        <td><strong style="color: #27ae60; font-size: 1.2rem;">$${cart.total}</strong></td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+            
+            <div style="margin-top: 2rem; display: flex; justify-content: space-between;">
+                <a href="/web/" class="btn btn-secondary">← Tiếp tục mua sắm</a>
+                <a href="/web/checkout/" class="btn btn-success">Thanh toán →</a>
+            </div>
+        </div>
+    `;
+}
+
+// Cập nhật số lượng
+async function updateCartItem(itemId) {
+    const quantity = parseInt(document.getElementById(`qty_${itemId}`).value);
+    
+    try {
+        const response = await fetch('/api/cart/update/', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                item_id: itemId,
+                quantity: quantity
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            loadCart(); // Reload cart
+            showAlert('Đã cập nhật giỏ hàng!', 'success');
+        } else {
+            showAlert(data.message || 'Không thể cập nhật!', 'danger');
+        }
+    } catch (error) {
+        showAlert('Có lỗi xảy ra!', 'danger');
+        console.error('Update cart error:', error);
+    }
+}
+
+// Xóa item
+async function removeCartItem(itemId) {
+    if (!confirm('Bạn chắc chắn muốn xóa sản phẩm này?')) return;
+    
+    try {
+        const response = await fetch('/api/cart/remove/', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ item_id: itemId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            loadCart(); // Reload cart
+            showAlert('Đã xóa khỏi giỏ hàng!', 'success');
+        } else {
+            showAlert(data.message || 'Không thể xóa!', 'danger');
+        }
+    } catch (error) {
+        showAlert('Có lỗi xảy ra!', 'danger');
+        console.error('Remove cart error:', error);
+    }
+}
+
+function showAlert(message, type) {
+    const alertContainer = document.getElementById('alert-container');
+    alertContainer.innerHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert" style="margin-bottom: 1rem;">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    setTimeout(() => { alertContainer.innerHTML = ''; }, 3000);
+}
+
+// Khởi tạo
+loadCart();
+</script>
 {% endblock %}

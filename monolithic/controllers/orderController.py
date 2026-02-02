@@ -19,7 +19,7 @@ def list_orders(request):
         'customer_name': o.customer.name,
         'staff_name': o.staff.name
     } for o in orders]
-    return JsonResponse(data, safe=False)
+    return JsonResponse({'success': True, 'orders': data})
 
 # API: Lấy thông tin chi tiết đơn hàng
 @require_http_methods(["GET"])
@@ -39,30 +39,33 @@ def get_order(request, order_id):
         } for item in order_items]
         
         return JsonResponse({
-            'id': order.id,
-            'total_price': float(order.total_price),
-            'status': order.status,
-            'order_date': str(order.order_date),
-            'customer': {
-                'id': order.customer.id,
-                'name': order.customer.name,
-                'email': order.customer.email
-            },
-            'staff': {
-                'id': order.staff.id,
-                'name': order.staff.name
-            },
-            'shipping': {
-                'id': order.shipping.id,
-                'method': order.shipping.method_name,
-                'fee': float(order.shipping.fee)
-            },
-            'payment': {
-                'id': order.payment.id,
-                'method': order.payment.method_name,
-                'status': order.payment.status
-            },
-            'items': items
+            'success': True,
+            'order': {
+                'id': order.id,
+                'total_price': float(order.total_price),
+                'status': order.status,
+                'order_date': str(order.order_date),
+                'customer': {
+                    'id': order.customer.id,
+                    'name': order.customer.name,
+                    'email': order.customer.email
+                },
+                'staff': {
+                    'id': order.staff.id,
+                    'name': order.staff.name
+                },
+                'shipping': {
+                    'id': order.shipping.id,
+                    'method': order.shipping.method_name,
+                    'fee': float(order.shipping.fee)
+                },
+                'payment': {
+                    'id': order.payment.id,
+                    'method': order.payment.method_name,
+                    'status': order.payment.status
+                },
+                'items': items
+            }
         })
     except Order.DoesNotExist:
         return JsonResponse({'error': 'Order not found'}, status=404)
@@ -81,7 +84,7 @@ def get_customer_orders(request, customer_id):
         'payment_method': o.payment.method_name,
         'payment_status': o.payment.status
     } for o in orders]
-    return JsonResponse(data, safe=False)
+    return JsonResponse({'success': True, 'orders': data})
 
 # API: Tạo đơn hàng từ giỏ hàng
 @csrf_exempt
@@ -147,9 +150,12 @@ def create_order_from_cart(request, customer_id):
             cart.save()
             
             return JsonResponse({
-                'order_id': order.id,
-                'total_price': float(total_price),
-                'status': order.status,
+                'success': True,
+                'order': {
+                    'id': order.id,
+                    'total_price': float(total_price),
+                    'status': order.status
+                },
                 'message': 'Order created successfully'
             }, status=201)
             
@@ -176,8 +182,11 @@ def update_order_status(request, order_id):
             order.save()
         
         return JsonResponse({
-            'order_id': order.id,
-            'status': order.status,
+            'success': True,
+            'order': {
+                'id': order.id,
+                'status': order.status
+            },
             'message': 'Order status updated successfully'
         })
     except Order.DoesNotExist:
@@ -195,7 +204,7 @@ def list_shipping_methods(request):
         'method_name': m.method_name,
         'fee': float(m.fee)
     } for m in methods]
-    return JsonResponse(data, safe=False)
+    return JsonResponse({'success': True, 'shipping_methods': data})
 
 # API: Lấy danh sách phương thức payment
 @require_http_methods(["GET"])
@@ -207,7 +216,7 @@ def list_payment_methods(request):
         'method_name': m.method_name,
         'status': m.status
     } for m in methods]
-    return JsonResponse(data, safe=False)
+    return JsonResponse({'success': True, 'payment_methods': data})
 
 # API: Tạo phương thức shipping mới
 @csrf_exempt

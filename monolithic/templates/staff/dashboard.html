@@ -5,46 +5,37 @@
 {% block content %}
 <h2 style="margin-bottom: 1.5rem;">👨‍💼 Quản lý kho hàng</h2>
 
-<!-- Low Stock Alert -->
-{% if low_stock %}
-<div class="alert alert-danger" style="margin-bottom: 2rem;">
-    <strong>⚠️ Cảnh báo:</strong> Có {{ low_stock|length }} sách sắp hết hàng (< 10 cuốn)
-</div>
-{% endif %}
+<div id="alert-container"></div>
 
 <!-- Add New Book -->
 <div class="card">
     <h3 style="margin-bottom: 1rem;">➕ Thêm sách mới</h3>
-    <form method="POST" action="{% url 'web_staff_add_book' %}">
-        {% csrf_token %}
+    <form id="addBookForm">
         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
             <div>
                 <label style="display: block; margin-bottom: 0.3rem;">Tên sách:</label>
-                <input type="text" name="title" required 
+                <input type="text" id="title" name="title" required 
                        style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
             </div>
             <div>
                 <label style="display: block; margin-bottom: 0.3rem;">Tác giả:</label>
-                <input type="text" name="author" required 
+                <input type="text" id="author" name="author" required 
                        style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
             </div>
             <div>
                 <label style="display: block; margin-bottom: 0.3rem;">Giá ($):</label>
-                <input type="number" name="price" step="0.01" required 
+                <input type="number" id="price" name="price" step="0.01" required 
                        style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
             </div>
             <div>
                 <label style="display: block; margin-bottom: 0.3rem;">Số lượng:</label>
-                <input type="number" name="stock_quantity" required 
+                <input type="number" id="stock_quantity" name="stock_quantity" required 
                        style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
             </div>
             <div>
                 <label style="display: block; margin-bottom: 0.3rem;">Danh mục:</label>
-                <select name="category_id" required 
+                <select id="category_id" name="category_id" required 
                         style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
-                    {% for category in categories %}
-                    <option value="{{ category.id }}">{{ category.name }}</option>
-                    {% endfor %}
                 </select>
             </div>
             <div style="display: flex; align-items: flex-end;">
@@ -57,44 +48,232 @@
 <!-- Books Inventory -->
 <div class="card" style="margin-top: 2rem;">
     <h3 style="margin-bottom: 1rem;">📚 Kho sách hiện tại</h3>
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Tên sách</th>
-                <th>Tác giả</th>
-                <th>Danh mục</th>
-                <th>Giá</th>
-                <th>Tồn kho</th>
-                <th>Hành động</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for book in books %}
-            <tr style="{% if book.stock_quantity < 10 %}background: #fff3cd;{% endif %}">
-                <td>{{ book.id }}</td>
-                <td><strong>{{ book.title }}</strong></td>
-                <td>{{ book.author }}</td>
-                <td>{{ book.category.name }}</td>
-                <td>${{ book.price }}</td>
-                <td>
-                    <form method="POST" action="{% url 'web_staff_update_stock' book.id %}" style="display: flex; gap: 0.5rem;">
-                        {% csrf_token %}
-                        <input type="number" name="stock_quantity" value="{{ book.stock_quantity }}" min="0"
-                               style="width: 70px; padding: 0.3rem; border: 1px solid #ddd; border-radius: 4px;">
-                        <button type="submit" class="btn" style="padding: 0.3rem 0.8rem;">💾</button>
-                    </form>
-                </td>
-                <td>
-                    <form method="POST" action="{% url 'web_staff_delete_book' book.id %}" style="display: inline;" 
-                          onsubmit="return confirm('Xác nhận xóa sách này?');">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-danger" style="padding: 0.3rem 0.8rem;">🗑️</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div id="booksInventory"></div>
 </div>
+
+<script>
+let currentUser = null;
+let categories = [];
+let books = [];
+
+// Kiểm tra user đăng nhập
+function checkAuth() {
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!user || user.type !== 'staff') {
+        window.location.href = '/web/login/';
+        return null;
+    }
+    currentUser = user;
+    return user;
+}
+
+// Tải danh mục
+async function loadCategories() {
+    try {
+        const response = await fetch('/api/books/categories/');
+        const data = await response.json();
+        
+        if (data.success) {
+            categories = data.categories;
+            const select = document.getElementById('category_id');
+            select.innerHTML = data.categories.map(cat => 
+                `<option value="${cat.id}">${cat.name}</option>`
+            ).join('');
+        }
+    } catch (error) {
+        console.error('Load categories error:', error);
+    }
+}
+
+// Tải danh sách sách
+async function loadBooks() {
+    try {
+        const response = await fetch('/api/books/');
+        const data = await response.json();
+        
+        if (data.success) {
+            books = data.books;
+            renderBooksInventory(data.books);
+        } else {
+            showAlert('Không thể tải danh sách sách!', 'danger');
+        }
+    } catch (error) {
+        showAlert('Có lỗi xảy ra!', 'danger');
+        console.error('Load books error:', error);
+    }
+}
+
+// Render bảng kho sách
+function renderBooksInventory(booksList) {
+    const container = document.getElementById('booksInventory');
+    
+    // Kiểm tra low stock
+    const lowStockCount = booksList.filter(b => b.stock_quantity < 10).length;
+    if (lowStockCount > 0) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-danger';
+        alertDiv.style.marginBottom = '1rem';
+        alertDiv.innerHTML = `<strong>⚠️ Cảnh báo:</strong> Có ${lowStockCount} sách sắp hết hàng (< 10 cuốn)`;
+        container.parentElement.insertBefore(alertDiv, container);
+    }
+    
+    container.innerHTML = `
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Tên sách</th>
+                    <th>Tác giả</th>
+                    <th>Danh mục</th>
+                    <th>Giá</th>
+                    <th>Tồn kho</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${booksList.map(book => `
+                    <tr style="${book.stock_quantity < 10 ? 'background: #fff3cd;' : ''}">
+                        <td>${book.id}</td>
+                        <td><strong>${book.title}</strong></td>
+                        <td>${book.author}</td>
+                        <td>${book.category_name}</td>
+                        <td>$${book.price}</td>
+                        <td>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <input type="number" id="stock_${book.id}" value="${book.stock_quantity}" min="0"
+                                       style="width: 70px; padding: 0.3rem; border: 1px solid #ddd; border-radius: 4px;">
+                                <button onclick="updateStock(${book.id})" class="btn" style="padding: 0.3rem 0.8rem;">💾</button>
+                            </div>
+                        </td>
+                        <td>
+                            <button onclick="deleteBook(${book.id})" class="btn btn-danger" style="padding: 0.3rem 0.8rem;">🗑️</button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+// Thêm sách mới
+document.getElementById('addBookForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const user = checkAuth();
+    if (!user) return;
+    
+    const formData = {
+        staff_id: user.id,
+        title: document.getElementById('title').value,
+        author: document.getElementById('author').value,
+        price: parseFloat(document.getElementById('price').value),
+        stock_quantity: parseInt(document.getElementById('stock_quantity').value),
+        category_id: parseInt(document.getElementById('category_id').value)
+    };
+    
+    try {
+        const response = await fetch('/api/staff/books/add/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert('Đã thêm sách mới thành công!', 'success');
+            document.getElementById('addBookForm').reset();
+            loadBooks(); // Reload inventory
+        } else {
+            showAlert(data.message || 'Không thể thêm sách!', 'danger');
+        }
+    } catch (error) {
+        showAlert('Có lỗi xảy ra!', 'danger');
+        console.error('Add book error:', error);
+    }
+});
+
+// Cập nhật tồn kho
+async function updateStock(bookId) {
+    const user = checkAuth();
+    if (!user) return;
+    
+    const stock_quantity = parseInt(document.getElementById(`stock_${bookId}`).value);
+    
+    try {
+        const response = await fetch(`/api/staff/books/${bookId}/stock/`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                staff_id: user.id,
+                stock_quantity: stock_quantity
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert('Đã cập nhật tồn kho!', 'success');
+            loadBooks(); // Reload inventory
+        } else {
+            showAlert(data.message || 'Không thể cập nhật!', 'danger');
+        }
+    } catch (error) {
+        showAlert('Có lỗi xảy ra!', 'danger');
+        console.error('Update stock error:', error);
+    }
+}
+
+// Xóa sách
+async function deleteBook(bookId) {
+    if (!confirm('Xác nhận xóa sách này?')) return;
+    
+    const user = checkAuth();
+    if (!user) return;
+    
+    try {
+        const response = await fetch(`/api/staff/books/${bookId}/delete/`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                staff_id: user.id
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert('Đã xóa sách!', 'success');
+            loadBooks(); // Reload inventory
+        } else {
+            showAlert(data.message || 'Không thể xóa!', 'danger');
+        }
+    } catch (error) {
+        showAlert('Có lỗi xảy ra!', 'danger');
+        console.error('Delete book error:', error);
+    }
+}
+
+function showAlert(message, type) {
+    const alertContainer = document.getElementById('alert-container');
+    alertContainer.innerHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert" style="margin-bottom: 1rem;">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    setTimeout(() => { alertContainer.innerHTML = ''; }, 3000);
+}
+
+// Khởi tạo
+checkAuth();
+loadCategories();
+loadBooks();
+</script>
 {% endblock %}

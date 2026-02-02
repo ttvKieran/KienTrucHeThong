@@ -46,41 +46,72 @@
     <div class="navbar">
         <div class="container">
             <h1>📚 Bookstore</h1>
-            <nav>
-                <a href="{% url 'web_home' %}">Trang chủ</a>
-                {% if request.session.user_id %}
-                    {% if request.session.user_type == 'customer' %}
-                        <a href="{% url 'web_recommendations' %}">Gợi ý</a>
-                        <a href="{% url 'web_cart' %}">🛒 Giỏ hàng</a>
-                        <a href="{% url 'web_order_history' %}">Đơn hàng</a>
-                    {% elif request.session.user_type == 'staff' %}
-                        <a href="{% url 'web_staff_dashboard' %}">👨‍💼 Quản lý kho</a>
-                    {% endif %}
-                    <span style="color: #ecf0f1; margin-left: 2rem;">👤 {{ request.session.user_name }}</span>
-                    <a href="{% url 'web_logout' %}">Đăng xuất</a>
-                {% else %}
-                    <a href="{% url 'web_login' %}">Đăng nhập</a>
-                    <a href="{% url 'web_register' %}">Đăng ký</a>
-                {% endif %}
+            <nav id="mainNav">
+                <a href="/web/">Trang chủ</a>
+                <a href="/web/login/" id="loginLink">Đăng nhập</a>
+                <a href="/web/register/" id="registerLink">Đăng ký</a>
             </nav>
         </div>
     </div>
     
     <div class="container">
-        {% if messages %}
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }}">
-            {{ message }}
-        </div>
-        {% endfor %}
-        {% endif %}
-        
         {% block content %}{% endblock %}
     </div>
     
     <div class="footer">
         <p>&copy; 2026 Bookstore Management System</p>
     </div>
+    
+    <script>
+    // Kiểm tra và render navbar theo trạng thái đăng nhập
+    function updateNavbar() {
+        const user = JSON.parse(localStorage.getItem('user') || 'null');
+        const nav = document.getElementById('mainNav');
+        
+        if (user) {
+            if (user.type === 'customer') {
+                nav.innerHTML = `
+                    <a href="/web/">Trang chủ</a>
+                    <a href="/web/ai-recommendations/">🤖 AI Gợi ý</a>
+                    <a href="/web/recommendations/">💡 Gợi ý</a>
+                    <a href="/web/cart/">🛒 Giỏ hàng</a>
+                    <a href="/web/orders/">Đơn hàng</a>
+                    <span style="color: #ecf0f1; margin-left: 2rem;">👤 ${user.name}</span>
+                    <a href="#" onclick="logout(); return false;">Đăng xuất</a>
+                `;
+            } else if (user.type === 'staff') {
+                nav.innerHTML = `
+                    <a href="/web/">Trang chủ</a>
+                    <a href="/web/staff/dashboard/">� Quản lý kho</a>
+                    <a href="/web/staff/orders/">📋 Quản lý đơn hàng</a>
+                    <span style="color: #ecf0f1; margin-left: 2rem;">👤 ${user.name}</span>
+                    <a href="#" onclick="logout(); return false;">Đăng xuất</a>
+                `;
+            }
+        } else {
+            nav.innerHTML = `
+                <a href="/web/">Trang chủ</a>
+                <a href="/web/login/">Đăng nhập</a>
+                <a href="/web/register/">Đăng ký</a>
+            `;
+        }
+    }
+    
+    // Đăng xuất
+    async function logout() {
+        try {
+            await fetch('/api/customers/logout/', { method: 'POST' });
+        } catch (error) {
+            console.error('Logout error:', error);
+        }
+        
+        localStorage.removeItem('user');
+        window.location.href = '/web/login/';
+    }
+    
+    // Cập nhật navbar khi trang load
+    updateNavbar();
+    </script>
     
     {% block extra_script %}{% endblock %}
 </body>

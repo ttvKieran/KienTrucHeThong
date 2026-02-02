@@ -5,48 +5,121 @@
 {% block content %}
 <h2 style="margin-bottom: 1.5rem;">📋 Lịch sử đơn hàng</h2>
 
-{% if orders %}
-<div class="card">
-    <table>
-        <thead>
-            <tr>
-                <th>Mã đơn</th>
-                <th>Ngày đặt</th>
-                <th>Tổng tiền</th>
-                <th>Trạng thái</th>
-                <th>Giao hàng</th>
-                <th>Thanh toán</th>
-                <th>Hành động</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for order in orders %}
-            <tr>
-                <td><strong>#{{ order.id }}</strong></td>
-                <td>{{ order.order_date }}</td>
-                <td><strong>${{ order.total_price }}</strong></td>
-                <td>
-                    <span style="padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.9rem;
-                                 background: {% if order.status == 'Delivered' %}#d4edda{% elif order.status == 'Pending' %}#fff3cd{% else %}#d1ecf1{% endif %};
-                                 color: {% if order.status == 'Delivered' %}#155724{% elif order.status == 'Pending' %}#856404{% else %}#0c5460{% endif %};">
-                        {{ order.status }}
-                    </span>
-                </td>
-                <td>{{ order.shipping.method_name }}</td>
-                <td>{{ order.payment.method_name }}</td>
-                <td>
-                    <a href="{% url 'web_order_detail' order.id %}" class="btn btn-secondary" style="padding: 0.3rem 1rem;">
-                        Chi tiết
-                    </a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-{% else %}
-<div class="alert alert-danger">
-    Chưa có đơn hàng nào. <a href="{% url 'web_home' %}">Mua sắm ngay!</a>
-</div>
-{% endif %}
+<div id="alert-container"></div>
+<div id="ordersContainer"></div>
+
+<script>
+let currentUser = null;
+
+// Kiểm tra user đăng nhập
+function checkAuth() {
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!user || user.type !== 'customer') {
+        window.location.href = '/web/login/';
+        return null;
+    }
+    currentUser = user;
+    return user;
+}
+
+// Tải danh sách đơn hàng
+async function loadOrders() {
+    const user = checkAuth();
+    if (!user) return;
+    
+    try {
+        const response = await fetch(`/api/orders/customer/${user.id}/`);
+        const data = await response.json();
+        
+        if (data.success) {
+            renderOrders(data.orders);
+        } else {
+            showAlert('Không thể tải đơn hàng!', 'danger');
+        }
+    } catch (error) {
+        showAlert('Có lỗi xảy ra!', 'danger');
+        console.error('Load orders error:', error);
+    }
+}
+
+// Render danh sách đơn hàng
+function renderOrders(orders) {
+    const container = document.getElementById('ordersContainer');
+    
+    if (orders.length === 0) {
+        container.innerHTML = `
+            <div class="alert alert-danger">
+                Chưa có đơn hàng nào. <a href="/web/">Mua sắm ngay!</a>
+            </div>
+        `;
+        return;
+    }
+    
+    const statusColors = {
+        'Delivered': { bg: '#d4edda', text: '#155724' },
+        'Pending': { bg: '#fff3cd', text: '#856404' },
+        'Shipping': { bg: '#d1ecf1', text: '#0c5460' }
+    };
+    
+    container.innerHTML = `
+        <div class="card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Mã đơn</th>
+                        <th>Ngày đặt</th>
+                        <th>Tổng tiền</th>
+                        <th>Trạng thái</th>
+                        <th>Giao hàng</th>
+                        <th>Thanh toán</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${orders.map(order => {
+                        const colors = statusColors[order.status] || { bg: '#d1ecf1', text: '#0c5460' };
+                        const date = new Date(order.order_date);
+                        const formattedDate = date.toLocaleDateString('vi-VN');
+                        
+                        return `
+                            <tr>
+                                <td><strong>#${order.id}</strong></td>
+                                <td>${formattedDate}</td>
+                                <td><strong>$${order.total_price}</strong></td>
+                                <td>
+                                    <span style="padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.9rem;
+                                                 background: ${colors.bg};
+                                                 color: ${colors.text};">
+                                        ${order.status}
+                                    </span>
+                                </td>
+                                <td>${order.shipping_method}</td>
+                                <td>${order.payment_method}</td>
+                                <td>
+                                    <a href="/web/orders/${order.id}/" class="btn btn-secondary" style="padding: 0.3rem 1rem;">
+                                        Chi tiết
+                                    </a>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+function showAlert(message, type) {
+    const alertContainer = document.getElementById('alert-container');
+    alertContainer.innerHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert" style="margin-bottom: 1rem;">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+}
+
+// Khởi tạo
+loadOrders();
+</script>
 {% endblock %}

@@ -7,26 +7,18 @@
     <div class="card">
         <h2 style="text-align: center; margin-bottom: 1.5rem;">🔐 Đăng nhập</h2>
         
-        {% if messages %}
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }}" style="margin-bottom: 1rem;">
-            {{ message }}
-        </div>
-        {% endfor %}
-        {% endif %}
+        <div id="alert-container"></div>
         
-        <form method="POST">
-            {% csrf_token %}
-            
+        <form id="loginForm">
             <div style="margin-bottom: 1rem;">
                 <label style="display: block; margin-bottom: 0.3rem; font-weight: 600;">Email:</label>
-                <input type="email" name="email" required 
+                <input type="email" id="email" name="email" required 
                        style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
             </div>
             
             <div style="margin-bottom: 1.5rem;">
                 <label style="display: block; margin-bottom: 0.3rem; font-weight: 600;">Mật khẩu:</label>
-                <input type="password" name="password" required 
+                <input type="password" id="password" name="password" required 
                        style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
             </div>
             
@@ -48,11 +40,64 @@
         
         <div style="text-align: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #ddd;">
             <p style="color: #7f8c8d;">Chưa có tài khoản? 
-                <a href="{% url 'web_register' %}" style="color: #3498db; text-decoration: none; font-weight: 600;">
+                <a href="/web/register/" style="color: #3498db; text-decoration: none; font-weight: 600;">
                     Đăng ký ngay
                 </a>
             </p>
         </div>
     </div>
 </div>
+
+<script>
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const user_type = document.querySelector('input[name="user_type"]:checked').value;
+    
+    try {
+        const response = await fetch('/api/customers/login/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, password, user_type })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Lưu thông tin user vào localStorage
+            localStorage.setItem('user', JSON.stringify(data.user));
+            
+            showAlert('Đăng nhập thành công!', 'success');
+            
+            // Chuyển hướng sau 500ms
+            setTimeout(() => {
+                if (data.user.type === 'staff') {
+                    window.location.href = '/web/staff/dashboard/';
+                } else {
+                    window.location.href = '/web/';
+                }
+            }, 500);
+        } else {
+            showAlert(data.message || 'Đăng nhập thất bại!', 'danger');
+        }
+    } catch (error) {
+        showAlert('Có lỗi xảy ra khi đăng nhập!', 'danger');
+        console.error('Login error:', error);
+    }
+});
+
+function showAlert(message, type) {
+    const alertContainer = document.getElementById('alert-container');
+    alertContainer.innerHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert" style="margin-bottom: 1rem;">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+}
+</script>
 {% endblock %}

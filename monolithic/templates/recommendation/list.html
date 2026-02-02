@@ -5,57 +5,113 @@
 {% block content %}
 <h2 style="margin-bottom: 1.5rem;">💡 Gợi ý sách dành cho bạn</h2>
 
+<div id="alert-container"></div>
+
 <!-- Top Rated Books -->
 <div class="card">
     <h3 style="margin-bottom: 1rem;">⭐ Sách được đánh giá cao</h3>
-    {% if top_rated %}
-    <div class="grid">
-        {% for book in top_rated %}
-        <div style="padding: 1rem; background: #f8f9fa; border-radius: 4px;">
-            <h4 style="margin-bottom: 0.5rem;">{{ book.title }}</h4>
-            <p style="color: #7f8c8d; margin-bottom: 0.3rem;">{{ book.author }}</p>
-            <p style="color: #3498db; margin-bottom: 0.3rem;">{{ book.category.name }}</p>
-            <p style="color: #f39c12; margin-bottom: 0.5rem;">
-                <strong>⭐ {{ book.avg_rating|floatformat:1 }}/5.0</strong> ({{ book.rating_count }} đánh giá)
-            </p>
-            <p style="color: #27ae60; margin-bottom: 1rem;"><strong>${{ book.price }}</strong></p>
-            <a href="{% url 'web_book_detail' book.id %}" class="btn" style="width: 100%; text-align: center;">
-                Xem chi tiết
-            </a>
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <p style="color: #7f8c8d;">Chưa có sách nào được đánh giá.</p>
-    {% endif %}
+    <div id="topRatedBooks" class="grid"></div>
 </div>
 
 <!-- Based on Purchase History -->
-{% if history_based %}
 <div class="card" style="margin-top: 2rem;">
     <h3 style="margin-bottom: 1rem;">📚 Dựa trên lịch sử mua hàng của bạn</h3>
-    <div class="grid">
-        {% for book in history_based %}
-        <div style="padding: 1rem; background: #f8f9fa; border-radius: 4px;">
-            <h4 style="margin-bottom: 0.5rem;">{{ book.title }}</h4>
-            <p style="color: #7f8c8d; margin-bottom: 0.3rem;">{{ book.author }}</p>
-            <p style="color: #3498db; margin-bottom: 0.3rem;">{{ book.category.name }}</p>
-            {% if book.avg_rating %}
-            <p style="color: #f39c12; margin-bottom: 0.5rem;">⭐ {{ book.avg_rating|floatformat:1 }}/5.0</p>
-            {% endif %}
-            <p style="color: #27ae60; margin-bottom: 1rem;"><strong>${{ book.price }}</strong></p>
-            <a href="{% url 'web_book_detail' book.id %}" class="btn" style="width: 100%; text-align: center;">
-                Xem chi tiết
-            </a>
-        </div>
-        {% endfor %}
-    </div>
+    <div id="historyBasedBooks" class="grid"></div>
 </div>
-{% endif %}
 
 <div style="margin-top: 2rem; text-align: center;">
-    <a href="{% url 'web_home' %}" class="btn btn-success" style="padding: 1rem 2rem;">
+    <a href="/web/" class="btn btn-success" style="padding: 1rem 2rem;">
         🛍️ Tiếp tục mua sắm
     </a>
 </div>
+
+<script>
+let currentUser = null;
+
+// Kiểm tra user đăng nhập
+function checkAuth() {
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!user || user.type !== 'customer') {
+        window.location.href = '/web/login/';
+        return null;
+    }
+    currentUser = user;
+    return user;
+}
+
+// Tải sách rating cao
+async function loadTopRated() {
+    try {
+        const response = await fetch('/api/recommendations/by-rating/?limit=12');
+        const data = await response.json();
+        
+        if (data.success && data.top_rated && data.top_rated.length > 0) {
+            renderBooks(data.top_rated, 'topRatedBooks', true);
+        } else {
+            document.getElementById('topRatedBooks').innerHTML = '<p style="color: #7f8c8d;">Chưa có sách nào được đánh giá.</p>';
+        }
+    } catch (error) {
+        console.error('Load top rated error:', error);
+        document.getElementById('topRatedBooks').innerHTML = '<p style="color: #7f8c8d;">Chưa có sách nào được đánh giá.</p>';
+    }
+}
+
+// Tải sách dựa trên lịch sử
+async function loadHistoryBased() {
+    const user = checkAuth();
+    if (!user) return;
+    
+    try {
+        const response = await fetch(`/api/recommendations/by-history/${user.id}/?limit=12`);
+        const data = await response.json();
+        
+        if (data.success && data.recommendations && data.recommendations.length > 0) {
+            renderBooks(data.recommendations, 'historyBasedBooks', false);
+        } else {
+            document.getElementById('historyBasedBooks').innerHTML = '<p style="color: #7f8c8d;">Chưa có gợi ý dựa trên lịch sử mua hàng.</p>';
+        }
+    } catch (error) {
+        console.error('Load history based error:', error);
+        document.getElementById('historyBasedBooks').innerHTML = '<p style="color: #7f8c8d;">Chưa có gợi ý dựa trên lịch sử mua hàng.</p>';
+    }
+}
+
+// Render danh sách sách
+function renderBooks(books, containerId, showRating) {
+    const container = document.getElementById(containerId);
+    
+    container.innerHTML = books.map(book => `
+        <div style="padding: 1rem; background: #f8f9fa; border-radius: 4px;">
+            <h4 style="margin-bottom: 0.5rem;">${book.title}</h4>
+            <p style="color: #7f8c8d; margin-bottom: 0.3rem;">${book.author}</p>
+            <p style="color: #3498db; margin-bottom: 0.3rem;">${book.category_name}</p>
+            ${showRating && book.average_rating > 0 ? `
+                <p style="color: #f39c12; margin-bottom: 0.5rem;">
+                    <strong>⭐ ${book.average_rating.toFixed(1)}/5.0</strong> 
+                    ${book.total_ratings ? `(${book.total_ratings} đánh giá)` : ''}
+                </p>
+            ` : ''}
+            <p style="color: #27ae60; margin-bottom: 1rem;"><strong>$${book.price}</strong></p>
+            <a href="/web/book/${book.id}/" class="btn" style="width: 100%; text-align: center;">
+                Xem chi tiết
+            </a>
+        </div>
+    `).join('');
+}
+
+function showAlert(message, type) {
+    const alertContainer = document.getElementById('alert-container');
+    alertContainer.innerHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert" style="margin-bottom: 1rem;">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+}
+
+// Khởi tạo
+checkAuth();
+loadTopRated();
+loadHistoryBased();
+</script>
 {% endblock %}

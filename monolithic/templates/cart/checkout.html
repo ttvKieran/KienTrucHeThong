@@ -5,72 +5,33 @@
 {% block content %}
 <h2 style="margin-bottom: 1.5rem;">💳 Thanh toán đơn hàng</h2>
 
+<div id="alert-container"></div>
+
 <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
     <!-- Order Summary -->
     <div>
         <div class="card">
             <h3 style="margin-bottom: 1rem;">Đơn hàng của bạn</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Sách</th>
-                        <th>Số lượng</th>
-                        <th>Giá</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in cart_items %}
-                    <tr>
-                        <td>{{ item.book.title }}</td>
-                        <td>{{ item.quantity }}</td>
-                        <td>${{ item.book.price }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            <div id="orderItems"></div>
         </div>
         
         <!-- Shipping & Payment Form -->
         <div class="card" style="margin-top: 1rem;">
             <h3 style="margin-bottom: 1rem;">Thông tin giao hàng & thanh toán</h3>
             
-            <form method="POST" action="{% url 'web_place_order' %}">
-                {% csrf_token %}
-                
+            <form id="checkoutForm">
                 <div style="margin-bottom: 1.5rem;">
                     <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
                         Phương thức giao hàng:
                     </label>
-                    {% for shipping in shipping_methods %}
-                    <div style="padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 0.5rem;">
-                        <label style="display: flex; align-items: center; cursor: pointer;">
-                            <input type="radio" name="shipping_id" value="{{ shipping.id }}" 
-                                   {% if forloop.first %}checked{% endif %}
-                                   onchange="updateTotal({{ shipping.fee }})"
-                                   style="margin-right: 0.5rem;">
-                            <span style="flex: 1;">
-                                <strong>{{ shipping.method_name }}</strong>
-                            </span>
-                            <span style="color: #27ae60;">+${{ shipping.fee }}</span>
-                        </label>
-                    </div>
-                    {% endfor %}
+                    <div id="shippingMethods"></div>
                 </div>
                 
                 <div style="margin-bottom: 1.5rem;">
                     <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
                         Phương thức thanh toán:
                     </label>
-                    {% for payment in payment_methods %}
-                    <div style="padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 0.5rem;">
-                        <label style="display: flex; align-items: center; cursor: pointer;">
-                            <input type="radio" name="payment_id" value="{{ payment.id }}" 
-                                   {% if forloop.first %}checked{% endif %}
-                                   style="margin-right: 0.5rem;">
-                            <strong>{{ payment.method_name }}</strong>
-                        </label>
-                    </div>
-                    {% endfor %}
+                    <div id="paymentMethods"></div>
                 </div>
                 
                 <button type="submit" class="btn btn-success" style="width: 100%; padding: 1rem; font-size: 1.1rem;">
@@ -87,17 +48,17 @@
             <div style="padding: 1rem 0; border-bottom: 1px solid #ddd;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
                     <span>Tạm tính:</span>
-                    <span id="subtotal">${{ subtotal }}</span>
+                    <span id="subtotal">$0.00</span>
                 </div>
                 <div style="display: flex; justify-content: space-between;">
                     <span>Phí ship:</span>
-                    <span id="shipping-fee">${{ shipping_methods.0.fee|default:"0.00" }}</span>
+                    <span id="shipping-fee">$0.00</span>
                 </div>
             </div>
             <div style="padding: 1rem 0;">
                 <div style="display: flex; justify-content: space-between; font-size: 1.3rem;">
                     <strong>Tổng cộng:</strong>
-                    <strong id="total" style="color: #27ae60;">${{ subtotal }}</strong>
+                    <strong id="total" style="color: #27ae60;">$0.00</strong>
                 </div>
             </div>
         </div>
@@ -105,19 +66,232 @@
 </div>
 
 <script>
-    const subtotal = {{ subtotal }};
+let currentUser = null;
+let cartData = null;
+let shippingMethods = [];
+let paymentMethods = [];
+let selectedShippingFee = 0;
+
+// Kiểm tra user đăng nhập
+function checkAuth() {
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!user || user.type !== 'customer') {
+        window.location.href = '/web/login/';
+        return null;
+    }
+    currentUser = user;
+    return user;
+}
+
+// Tải giỏ hàng
+async function loadCart() {
+    const user = checkAuth();
+    if (!user) return;
     
-    function updateTotal(shippingFee) {
-        const total = subtotal + parseFloat(shippingFee);
-        document.getElementById('shipping-fee').textContent = '$' + shippingFee.toFixed(2);
-        document.getElementById('total').textContent = '$' + total.toFixed(2);
+    try {
+        const response = await fetch(`/api/cart/${user.id}/`);
+        const data = await response.json();
+        
+        if (data.success) {
+            if (!data.cart.items || data.cart.items.length === 0) {
+                window.location.href = '/web/cart/';
+                return;
+            }
+            cartData = data.cart;
+            renderOrderItems(data.cart);
+        }
+    } catch (error) {
+        showAlert('Có lỗi xảy ra!', 'danger');
+        console.error('Load cart error:', error);
+    }
+}
+
+// Tải phương thức shipping
+async function loadShippingMethods() {
+    try {
+        const response = await fetch('/api/orders/shipping-methods/');
+        const data = await response.json();
+        
+        if (data.success) {
+            shippingMethods = data.shipping_methods;
+            renderShippingMethods(data.shipping_methods);
+        }
+    } catch (error) {
+        console.error('Load shipping error:', error);
+    }
+}
+
+// Tải phương thức payment
+async function loadPaymentMethods() {
+    try {
+        const response = await fetch('/api/orders/payment-methods/');
+        const data = await response.json();
+        
+        if (data.success) {
+            paymentMethods = data.payment_methods;
+            renderPaymentMethods(data.payment_methods);
+        }
+    } catch (error) {
+        console.error('Load payment error:', error);
+    }
+}
+
+// Render cart items
+function renderOrderItems(cart) {
+    const container = document.getElementById('orderItems');
+    const subtotal = parseFloat(cart.total);
+    
+    container.innerHTML = `
+        <table>
+            <thead>
+                <tr>
+                    <th>Sách</th>
+                    <th>Số lượng</th>
+                    <th>Giá</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${cart.items.map(item => `
+                    <tr>
+                        <td>${item.book_title}</td>
+                        <td>${item.quantity}</td>
+                        <td>$${item.book_price}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+    
+    document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
+    updateTotal();
+}
+
+// Render shipping methods
+function renderShippingMethods(methods) {
+    const container = document.getElementById('shippingMethods');
+    
+    container.innerHTML = methods.map((method, index) => `
+        <div style="padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 0.5rem;">
+            <label style="display: flex; align-items: center; cursor: pointer;">
+                <input type="radio" name="shipping_id" value="${method.id}" 
+                       ${index === 0 ? 'checked' : ''}
+                       onchange="updateShippingFee(${method.fee})"
+                       style="margin-right: 0.5rem;">
+                <span style="flex: 1;">
+                    <strong>${method.method_name}</strong>
+                </span>
+                <span style="color: #27ae60;">+$${method.fee}</span>
+            </label>
+        </div>
+    `).join('');
+    
+    // Set initial shipping fee
+    if (methods.length > 0) {
+        selectedShippingFee = parseFloat(methods[0].fee);
+        updateTotal();
+    }
+}
+
+// Render payment methods
+function renderPaymentMethods(methods) {
+    const container = document.getElementById('paymentMethods');
+    
+    container.innerHTML = methods.map((method, index) => `
+        <div style="padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 0.5rem;">
+            <label style="display: flex; align-items: center; cursor: pointer;">
+                <input type="radio" name="payment_id" value="${method.id}" 
+                       ${index === 0 ? 'checked' : ''}
+                       style="margin-right: 0.5rem;">
+                <strong>${method.method_name}</strong>
+            </label>
+        </div>
+    `).join('');
+}
+
+// Cập nhật phí ship
+function updateShippingFee(fee) {
+    selectedShippingFee = parseFloat(fee);
+    updateTotal();
+}
+
+// Cập nhật tổng tiền
+function updateTotal() {
+    if (!cartData) return;
+    
+    const subtotal = parseFloat(cartData.total);
+    const total = subtotal + selectedShippingFee;
+    
+    document.getElementById('shipping-fee').textContent = `$${selectedShippingFee.toFixed(2)}`;
+    document.getElementById('total').textContent = `$${total.toFixed(2)}`;
+}
+
+// Submit đơn hàng
+document.getElementById('checkoutForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const user = checkAuth();
+    if (!user) return;
+    
+    const shippingSelected = document.querySelector('input[name="shipping_id"]:checked');
+    const paymentSelected = document.querySelector('input[name="payment_id"]:checked');
+    
+    if (!shippingSelected) {
+        showAlert('Vui lòng chọn phương thức giao hàng!', 'warning');
+        return;
     }
     
-    // Set initial total
-    const firstShipping = document.querySelector('input[name="shipping_id"]:checked');
-    if (firstShipping) {
-        const fee = {{ shipping_methods.0.fee|default:"0" }};
-        updateTotal(fee);
+    if (!paymentSelected) {
+        showAlert('Vui lòng chọn phương thức thanh toán!', 'warning');
+        return;
     }
+    
+    const shipping_id = parseInt(shippingSelected.value);
+    const payment_id = parseInt(paymentSelected.value);
+    
+    try {
+        const response = await fetch(`/api/orders/create/${user.id}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                cart_id: cartData.id,
+                customer_id: user.id,
+                shipping_id: shipping_id,
+                payment_id: payment_id
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert('Đặt hàng thành công!', 'success');
+            setTimeout(() => {
+                window.location.href = `/web/orders/${data.order.id}/`;
+            }, 1500);
+        } else {
+            showAlert(data.message || 'Không thể đặt hàng!', 'danger');
+        }
+    } catch (error) {
+        showAlert('Có lỗi xảy ra!', 'danger');
+        console.error('Place order error:', error);
+    }
+});
+
+function showAlert(message, type) {
+    const alertContainer = document.getElementById('alert-container');
+    alertContainer.innerHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert" style="margin-bottom: 1rem;">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+}
+
+// Khởi tạo
+checkAuth();
+loadCart();
+loadShippingMethods();
+loadPaymentMethods();
 </script>
 {% endblock %}

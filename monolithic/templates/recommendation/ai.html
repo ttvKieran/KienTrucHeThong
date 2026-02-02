@@ -1,0 +1,382 @@
+{% extends 'base.html' %}
+
+{% block title %}AI Gợi ý sách{% endblock %}
+
+{% block content %}
+{% comment %} <div style="margin-bottom: 2rem;">
+    <p style="color: #7f8c8d;">Được cá nhân hóa dựa trên sở thích và hành vi của bạn</p>
+</div> {% endcomment %}
+
+<div id="alert-container"></div>
+
+<!-- AI Algorithm Selector -->
+<div class="card" style="margin-bottom: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+    <h3 style="margin-bottom: 1rem;">Chọn thuật toán AI</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+        <button class="ai-algorithm-btn active" data-algorithm="hybrid" style="background: rgba(255,255,255,0.2); border: 2px solid white; color: white; padding: 0.8rem; border-radius: 8px; cursor: pointer; transition: all 0.3s;">
+            <strong>Hybrid AI</strong><br>
+            <small>Kết hợp tất cả</small>
+        </button>
+        <button class="ai-algorithm-btn" data-algorithm="collaborative" style="background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 0.8rem; border-radius: 8px; cursor: pointer; transition: all 0.3s;">
+            <strong>Collaborative</strong><br>
+            <small>Người dùng tương tự</small>
+        </button>
+        <button class="ai-algorithm-btn" data-algorithm="content" style="background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 0.8rem; border-radius: 8px; cursor: pointer; transition: all 0.3s;">
+            <strong>Content-Based</strong><br>
+            <small>Dựa trên nội dung</small>
+        </button>
+        <button class="ai-algorithm-btn" data-algorithm="trending" style="background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 0.8rem; border-radius: 8px; cursor: pointer; transition: all 0.3s;">
+            <strong>Trending</strong><br>
+            <small>Đang hot</small>
+        </button>
+    </div>
+</div>
+
+<!-- AI Info Panel -->
+<div id="aiInfoPanel" class="card" style="margin-bottom: 2rem; background: #f8f9fa; border-left: 4px solid #667eea;">
+    <div id="algorithmInfo"></div>
+</div>
+
+<!-- Loading Indicator -->
+<div id="loadingIndicator" style="display: none; text-align: center; padding: 2rem;">
+    <div style="display: inline-block; width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+    <p style="margin-top: 1rem; color: #7f8c8d;">AI đang phân tích...</p>
+</div>
+
+<!-- AI Recommendations -->
+<div id="aiRecommendations" class="card">
+    <h3 id="recommendationsTitle" style="margin-bottom: 1.5rem;">💡 Gợi ý của AI</h3>
+    <div id="recommendationsGrid" class="grid"></div>
+</div>
+
+<!-- Personalized Sections (cho Hybrid mode) -->
+<div id="personalizedSections" style="display: none;">
+    <!-- For You Section -->
+    <div class="card" style="margin-top: 2rem;">
+        <h3 style="margin-bottom: 1rem;">✨ Dành riêng cho bạn</h3>
+        <div id="forYouGrid" class="grid"></div>
+    </div>
+    
+    <!-- Trending Section -->
+    <div class="card" style="margin-top: 2rem;">
+        <h3 style="margin-bottom: 1rem;">🔥 Đang thịnh hành</h3>
+        <div id="trendingGrid" class="grid"></div>
+    </div>
+    
+    <!-- New Arrivals Section -->
+    <div class="card" style="margin-top: 2rem;">
+        <h3 style="margin-bottom: 1rem;">🆕 Sách mới</h3>
+        <div id="newArrivalsGrid" class="grid"></div>
+    </div>
+</div>
+
+<div style="margin-top: 2rem; text-align: center;">
+    <a href="/web/" class="btn btn-success" style="padding: 1rem 2rem;">
+        🛍️ Tiếp tục mua sắm
+    </a>
+</div>
+
+<style>
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.ai-algorithm-btn:hover {
+    background: rgba(255,255,255,0.3) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.ai-algorithm-btn.active {
+    background: rgba(255,255,255,0.3) !important;
+    border: 2px solid white !important;
+    transform: scale(1.05);
+}
+
+.book-card {
+    padding: 1.5rem;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e1e8ed;
+    transition: all 0.3s;
+    position: relative;
+}
+
+.book-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+}
+
+.ai-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+.reason-tag {
+    background: #e8f5e9;
+    color: #2e7d32;
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    display: inline-block;
+    margin-top: 0.5rem;
+}
+</style>
+
+<script>
+let currentUser = null;
+let currentAlgorithm = 'hybrid';
+
+// Kiểm tra user đăng nhập
+function checkAuth() {
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!user || user.type !== 'customer') {
+        window.location.href = '/web/login/';
+        return null;
+    }
+    currentUser = user;
+    return user;
+}
+
+// Algorithm info
+const algorithmDescriptions = {
+    hybrid: {
+        title: '🌟 Hybrid AI Recommendation',
+        description: 'Kết hợp Collaborative Filtering và Content-Based Filtering để đưa ra gợi ý chính xác nhất. Đây là thuật toán mạnh nhất của hệ thống.',
+        features: ['Phân tích người dùng tương tự', 'Phân tích nội dung sách', 'Kết hợp đa chiều']
+    },
+    collaborative: {
+        title: '👥 Collaborative Filtering',
+        description: 'Gợi ý dựa trên những người dùng có sở thích tương tự với bạn. Sử dụng Cosine Similarity để tìm user tương đồng.',
+        features: ['User-based filtering', 'Cosine similarity', 'Weighted scoring']
+    },
+    content: {
+        title: '📚 Content-Based Filtering',
+        description: 'Gợi ý dựa trên nội dung của những cuốn sách bạn đã đánh giá cao (tác giả, thể loại).',
+        features: ['Category analysis', 'Author preferences', 'Rating-based weighting']
+    },
+    trending: {
+        title: '🔥 Trending Analysis',
+        description: 'Phân tích xu hướng dựa trên doanh số bán gần đây, ratings và số lượng đánh giá.',
+        features: ['Recent sales tracking', 'Time-weighted analysis', 'Popularity scoring']
+    }
+};
+
+// Load AI recommendations
+async function loadAIRecommendations(algorithm) {
+    const user = checkAuth();
+    if (!user) return;
+    
+    showLoading(true);
+    
+    try {
+        let url;
+        switch(algorithm) {
+            case 'hybrid':
+                url = `/api/recommendations/ai/personalized/${user.id}/`;
+                break;
+            case 'collaborative':
+                url = `/api/recommendations/ai/collaborative/${user.id}/?limit=12`;
+                break;
+            case 'content':
+                url = `/api/recommendations/ai/content-based/${user.id}/?limit=12`;
+                break;
+            case 'trending':
+                url = `/api/recommendations/ai/trending/?limit=12`;
+                break;
+        }
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.success) {
+            if (algorithm === 'hybrid' && data.sections) {
+                // Show personalized sections
+                renderPersonalizedSections(data.sections);
+            } else {
+                // Show single recommendation list
+                const recommendations = data.recommendations || data.trending || [];
+                renderRecommendations(recommendations, algorithm);
+            }
+            
+            // Update info panel
+            updateInfoPanel(algorithm, data);
+        } else {
+            showAlert('Không thể tải gợi ý. Vui lòng thử lại.', 'danger');
+        }
+    } catch (error) {
+        console.error('Load AI recommendations error:', error);
+        showAlert('Lỗi kết nối. Vui lòng thử lại.', 'danger');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Render recommendations
+function renderRecommendations(books, algorithm) {
+    document.getElementById('personalizedSections').style.display = 'none';
+    document.getElementById('aiRecommendations').style.display = 'block';
+    
+    const grid = document.getElementById('recommendationsGrid');
+    
+    if (books.length === 0) {
+        grid.innerHTML = '<p style="color: #7f8c8d; grid-column: 1/-1; text-align: center; padding: 2rem;">Chưa có gợi ý phù hợp. Hãy đánh giá thêm sách để AI học hỏi sở thích của bạn!</p>';
+        return;
+    }
+    
+    grid.innerHTML = books.map(book => `
+        <div class="book-card">
+            <div class="ai-badge">AI</div>
+            <h4 style="margin-bottom: 0.5rem; color: #2c3e50;">${book.title}</h4>
+            <p style="color: #7f8c8d; margin-bottom: 0.3rem; font-size: 0.9rem;">✍️ ${book.author}</p>
+            <p style="color: #3498db; margin-bottom: 0.5rem; font-size: 0.9rem;">📂 ${book.category_name}</p>
+            
+            ${book.average_rating > 0 ? `
+                <p style="color: #f39c12; margin-bottom: 0.5rem; font-size: 0.9rem;">
+                    ⭐ <strong>${book.average_rating.toFixed(1)}</strong>/5.0
+                    ${book.total_ratings ? `<span style="color: #95a5a6;">(${book.total_ratings})</span>` : ''}
+                </p>
+            ` : ''}
+            
+            <div class="reason-tag">
+                ${book.reason || 'AI recommended'}
+            </div>
+            
+            <p style="color: #27ae60; margin: 1rem 0; font-size: 1.2rem;"><strong>$${book.price}</strong></p>
+            
+            ${book.stock_quantity > 0 ? `
+                <p style="color: #27ae60; font-size: 0.85rem; margin-bottom: 1rem;">✓ Còn hàng (${book.stock_quantity})</p>
+            ` : `
+                <p style="color: #e74c3c; font-size: 0.85rem; margin-bottom: 1rem;">✗ Hết hàng</p>
+            `}
+            
+            <a href="/web/book/${book.id}/" class="btn" style="width: 100%; text-align: center; background: #667eea; color: white;">
+                Xem chi tiết
+            </a>
+        </div>
+    `).join('');
+}
+
+// Render personalized sections (for hybrid)
+function renderPersonalizedSections(sections) {
+    document.getElementById('aiRecommendations').style.display = 'none';
+    document.getElementById('personalizedSections').style.display = 'block';
+    
+    renderSectionBooks(sections.for_you || [], 'forYouGrid');
+    renderSectionBooks(sections.trending || [], 'trendingGrid');
+    renderSectionBooks(sections.new_arrivals || [], 'newArrivalsGrid');
+}
+
+// Render books in a section
+function renderSectionBooks(books, gridId) {
+    const grid = document.getElementById(gridId);
+    
+    if (books.length === 0) {
+        grid.innerHTML = '<p style="color: #7f8c8d;">Không có dữ liệu</p>';
+        return;
+    }
+    
+    grid.innerHTML = books.map(book => `
+        <div class="book-card">
+            <div class="ai-badge">AI</div>
+            <h4 style="margin-bottom: 0.5rem; color: #2c3e50;">${book.title}</h4>
+            <p style="color: #7f8c8d; margin-bottom: 0.3rem; font-size: 0.9rem;">✍️ ${book.author}</p>
+            <p style="color: #3498db; margin-bottom: 0.5rem; font-size: 0.9rem;">📂 ${book.category_name}</p>
+            
+            ${book.average_rating > 0 ? `
+                <p style="color: #f39c12; margin-bottom: 0.8rem; font-size: 0.9rem;">
+                    ⭐ <strong>${book.average_rating.toFixed(1)}</strong>/5.0
+                </p>
+            ` : ''}
+            
+            <p style="color: #27ae60; margin-bottom: 1rem; font-size: 1.1rem;"><strong>$${book.price}</strong></p>
+            
+            <a href="/web/book/${book.id}/" class="btn" style="width: 100%; text-align: center; background: #667eea; color: white;">
+                Xem chi tiết
+            </a>
+        </div>
+    `).join('');
+}
+
+// Update info panel
+function updateInfoPanel(algorithm, data) {
+    const info = algorithmDescriptions[algorithm];
+    const infoPanel = document.getElementById('algorithmInfo');
+    
+    let extraInfo = '';
+    if (data.similar_users_count) {
+        extraInfo += `<p style="margin-top: 0.5rem; color: #7f8c8d;">👥 Tìm thấy ${data.similar_users_count} người dùng tương tự</p>`;
+    }
+    if (data.top_categories && data.top_categories.length > 0) {
+        extraInfo += `<p style="margin-top: 0.5rem; color: #7f8c8d;">📚 Thể loại yêu thích: ${data.top_categories.join(', ')}</p>`;
+    }
+    if (data.period_days) {
+        extraInfo += `<p style="margin-top: 0.5rem; color: #7f8c8d;">📅 Phân tích ${data.period_days} ngày gần đây</p>`;
+    }
+    
+    infoPanel.innerHTML = `
+        <h4 style="color: #667eea; margin-bottom: 0.5rem;">${info.title}</h4>
+        <p style="color: #5a6c7d; margin-bottom: 1rem;">${info.description}</p>
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            ${info.features.map(f => `
+                <span style="background: #667eea; color: white; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.85rem;">
+                    ✓ ${f}
+                </span>
+            `).join('')}
+        </div>
+        ${extraInfo}
+    `;
+}
+
+// Show/hide loading
+function showLoading(show) {
+    document.getElementById('loadingIndicator').style.display = show ? 'block' : 'none';
+}
+
+// Show alert
+function showAlert(message, type) {
+    const alertContainer = document.getElementById('alert-container');
+    alertContainer.innerHTML = `
+        <div class="alert alert-${type}" role="alert" style="margin-bottom: 1rem; padding: 1rem; border-radius: 8px; background: ${type === 'danger' ? '#fee' : '#efe'}; color: ${type === 'danger' ? '#c33' : '#3c3'};">
+            ${message}
+        </div>
+    `;
+    setTimeout(() => {
+        alertContainer.innerHTML = '';
+    }, 5000);
+}
+
+// Algorithm button click handlers
+document.querySelectorAll('.ai-algorithm-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        // Remove active class from all buttons
+        document.querySelectorAll('.ai-algorithm-btn').forEach(b => b.classList.remove('active'));
+        
+        // Add active class to clicked button
+        this.classList.add('active');
+        
+        // Load recommendations for selected algorithm
+        currentAlgorithm = this.dataset.algorithm;
+        loadAIRecommendations(currentAlgorithm);
+    });
+});
+
+// Initialize
+checkAuth();
+loadAIRecommendations('hybrid');
+</script>
+{% endblock %}

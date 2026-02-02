@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+
+{% block title %}Quản lý đơn hàng{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom: 1.5rem;">📦 Quản lý đơn hàng</h2>
+
+<div id="alert-container"></div>
+
+<!-- Filter by status -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div style="display: flex; gap: 1rem; align-items: center;">
+        <label style="font-weight: bold;">Lọc theo trạng thái:</label>
+        <select id="statusFilter" style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; flex: 1; max-width: 300px;">
+            <option value="">Tất cả</option>
+            <option value="Pending">Chờ xử lý</option>
+            <option value="Shipping">Đang giao</option>
+            <option value="Delivered">Đã giao</option>
+        </select>
+    </div>
+</div>
+
+<div id="ordersContainer"></div>
+
+<script>
+let allOrders = [];
+let currentUser = null;
+
+// Kiểm tra user đăng nhập
+function checkAuth() {
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!user || user.type !== 'staff') {
+        window.location.href = '/web/login/';
+        return null;
+    }
+    currentUser = user;
+    return user;
+}
+
+// Tải danh sách đơn hàng
+async function loadOrders() {
+    const user = checkAuth();
+    if (!user) return;
+    
+    try {
+        const response = await fetch('/api/orders/');
+        const data = await response.json();
+        
+        if (data.success) {
+            allOrders = data.orders;
+            renderOrders(allOrders);
+        } else {
+            showAlert('Không thể tải đơn hàng!', 'danger');
+        }
+    } catch (error) {
+        showAlert('Có lỗi xảy ra!', 'danger');
+        console.error('Load orders error:', error);
+    }
+}
+
+// Filter orders by status
+function filterOrders() {
+    const status = document.getElementById('statusFilter').value;
+    if (status === '') {
+        renderOrders(allOrders);
+    } else {
+        const filtered = allOrders.filter(order => order.status === status);
+        renderOrders(filtered);
+    }
+}
+
+// Render danh sách đơn hàng
+function renderOrders(orders) {
+    const container = document.getElementById('ordersContainer');
+    
+    if (orders.length === 0) {
+        container.innerHTML = `
+            <div class="alert alert-danger">
+                Không có đơn hàng nào.
+            </div>
+        `;
+        return;
+    }
+    
+    const statusColors = {
+        'Delivered': { bg: '#d4edda', text: '#155724' },
+        'Pending': { bg: '#fff3cd', text: '#856404' },
+        'Shipping': { bg: '#d1ecf1', text: '#0c5460' }
+    };
+    
+    container.innerHTML = `
+        <div class="card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Mã đơn</th>
+                        <th>Khách hàng</th>
+                        <th>Nhân viên</th>
+                        <th>Ngày đặt</th>
+                        <th>Tổng tiền</th>
+                        <th>Trạng thái</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${orders.map(order => {
+                        const colors = statusColors[order.status] || { bg: '#d1ecf1', text: '#0c5460' };
+                        const date = new Date(order.order_date);
+                        const formattedDate = date.toLocaleDateString('vi-VN');
+                        
+                        return `
+                            <tr>
+                                <td><strong>#${order.id}</strong></td>
+                                <td>${order.customer_name}</td>
+                                <td>${order.staff_name}</td>
+                                <td>${formattedDate}</td>
+                                <td><strong>$${order.total_price}</strong></td>
+                                <td>
+                                    <span style="padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.9rem;
+                                                 background: ${colors.bg}; color: ${colors.text};">
+                                        ${order.status}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div style="display: flex; gap: 0.5rem;">
+                                        <a href="/web/orders/${order.id}/" class="btn" style="padding: 0.3rem 0.8rem; font-size: 0.9rem;">
+                                            👁️ Xem
+                                        </a>
+                                        ${order.status !== 'Delivered' ? `
+                                            <select id="status_${order.id}" 
+                                                    style="padding: 0.3rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;"
+                                                    onchange="updateStatus(${order.id})">
+                                                <option value="">-- Cập nhật --</option>
+                                                ${order.status === 'Pending' ? '<option value="Shipping">→ Đang giao</option>' : ''}
+                                                ${order.status === 'Shipping' ? '<option value="Delivered">→ Đã giao</option>' : ''}
+                                            </select>
+                                        ` : ''}
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+// Cập nhật trạng thái đơn hàng
+async function updateStatus(orderId) {
+    const user = checkAuth();
+    if (!user) return;
+    
+    const selectElement = document.getElementById(`status_${orderId}`);
+    const newStatus = selectElement.value;
+    
+    if (!newStatus) return;
+    
+    try {
+        const response = await fetch(`/api/orders/${orderId}/status/`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                status: newStatus
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert(`Đã cập nhật trạng thái đơn hàng #${orderId}!`, 'success');
+            loadOrders(); // Reload orders
+        } else {
+            showAlert(data.message || 'Không thể cập nhật!', 'danger');
+        }
+    } catch (error) {
+        showAlert('Có lỗi xảy ra!', 'danger');
+        console.error('Update status error:', error);
+    }
+}
+
+function showAlert(message, type) {
+    const alertContainer = document.getElementById('alert-container');
+    alertContainer.innerHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert" style="margin-bottom: 1rem;">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    setTimeout(() => { alertContainer.innerHTML = ''; }, 3000);
+}
+
+// Khởi tạo
+document.getElementById('statusFilter').addEventListener('change', filterOrders);
+checkAuth();
+loadOrders();
+</script>
+{% endblock %}

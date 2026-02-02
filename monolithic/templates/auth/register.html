@@ -7,48 +7,41 @@
     <div class="card">
         <h2 style="text-align: center; margin-bottom: 1.5rem;">📝 Đăng ký tài khoản</h2>
         
-        {% if messages %}
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }}" style="margin-bottom: 1rem;">
-            {{ message }}
-        </div>
-        {% endfor %}
-        {% endif %}
+        <div id="alert-container"></div>
         
-        <form method="POST">
-            {% csrf_token %}
+        <form id="registerForm">
             
             <div style="margin-bottom: 1rem;">
                 <label style="display: block; margin-bottom: 0.3rem; font-weight: 600;">Họ tên:</label>
-                <input type="text" name="name" required 
+                <input type="text" id="name" name="name" required 
                        style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
             </div>
             
             <div style="margin-bottom: 1rem;">
                 <label style="display: block; margin-bottom: 0.3rem; font-weight: 600;">Email:</label>
-                <input type="email" name="email" required 
+                <input type="email" id="email" name="email" required 
                        style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
             </div>
             
             <div style="margin-bottom: 1rem;">
                 <label style="display: block; margin-bottom: 0.3rem; font-weight: 600;">Mật khẩu:</label>
-                <input type="password" name="password" required minlength="6"
+                <input type="password" id="password" name="password" required minlength="6"
                        style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
             </div>
             
             <div style="margin-bottom: 1rem;">
                 <label style="display: block; margin-bottom: 0.3rem; font-weight: 600;">Xác nhận mật khẩu:</label>
-                <input type="password" name="confirm_password" required minlength="6"
+                <input type="password" id="confirm_password" name="confirm_password" required minlength="6"
                        style="width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
             </div>
             
             <div style="margin-bottom: 1.5rem; padding: 1rem; background: #f8f9fa; border-radius: 4px;">
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Địa chỉ:</label>
-                <input type="text" name="house_number" placeholder="Số nhà" required
+                <input type="text" id="house_number" name="house_number" placeholder="Số nhà" required
                        style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 0.5rem;">
-                <input type="text" name="street" placeholder="Tên đường" required
+                <input type="text" id="street" name="street" placeholder="Tên đường" required
                        style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 0.5rem;">
-                <input type="text" name="province" placeholder="Tỉnh/Thành phố" required
+                <input type="text" id="province" name="province" placeholder="Tỉnh/Thành phố" required
                        style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
             </div>
             
@@ -59,11 +52,68 @@
         
         <div style="text-align: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #ddd;">
             <p style="color: #7f8c8d;">Đã có tài khoản? 
-                <a href="{% url 'web_login' %}" style="color: #3498db; text-decoration: none; font-weight: 600;">
+                <a href="/web/login/" style="color: #3498db; text-decoration: none; font-weight: 600;">
                     Đăng nhập ngay
                 </a>
             </p>
         </div>
     </div>
 </div>
+
+<script>
+document.getElementById('registerForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const password = document.getElementById('password').value;
+    const confirm_password = document.getElementById('confirm_password').value;
+    
+    if (password !== confirm_password) {
+        showAlert('Mật khẩu xác nhận không khớp!', 'danger');
+        return;
+    }
+    
+    const formData = {
+        name: document.getElementById('name').value,
+        email: document.getElementById('email').value,
+        password: password,
+        house_number: document.getElementById('house_number').value,
+        street: document.getElementById('street').value,
+        province: document.getElementById('province').value
+    };
+    
+    try {
+        const response = await fetch('/api/customers/register/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert('Đăng ký thành công! Đang chuyển đến trang đăng nhập...', 'success');
+            setTimeout(() => {
+                window.location.href = '/web/login/';
+            }, 1500);
+        } else {
+            showAlert(data.message || 'Đăng ký thất bại!', 'danger');
+        }
+    } catch (error) {
+        showAlert('Có lỗi xảy ra khi đăng ký!', 'danger');
+        console.error('Register error:', error);
+    }
+});
+
+function showAlert(message, type) {
+    const alertContainer = document.getElementById('alert-container');
+    alertContainer.innerHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert" style="margin-bottom: 1rem;">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+}
+</script>
 {% endblock %}

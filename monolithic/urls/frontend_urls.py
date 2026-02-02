@@ -1,34 +1,30 @@
 from django.urls import path
-from controllers import frontendController
+from django.views.generic import TemplateView
 
 urlpatterns = [
-    # Authentication
-    path('login/', frontendController.login_view, name='web_login'),
-    path('register/', frontendController.register_view, name='web_register'),
-    path('logout/', frontendController.logout_view, name='web_logout'),
+    # Authentication pages
+    path('login/', TemplateView.as_view(template_name='auth/login.html'), name='web_login'),
+    path('register/', TemplateView.as_view(template_name='auth/register.html'), name='web_register'),
     
-    # Book views
-    path('', frontendController.book_list, name='web_home'),
-    path('books/<int:book_id>/', frontendController.book_detail, name='web_book_detail'),
+    # Book pages
+    path('', TemplateView.as_view(template_name='book/list.html'), name='web_home'),
+    path('book/<int:book_id>/', TemplateView.as_view(template_name='book/detail.html'), name='web_book_detail'),
     
-    # Cart views
-    path('cart/', frontendController.cart_view, name='web_cart'),
-    path('cart/add/<int:book_id>/', frontendController.add_to_cart, name='web_add_to_cart'),
-    path('cart/update/<int:item_id>/', frontendController.update_cart_item, name='web_update_cart_item'),
-    path('cart/remove/<int:item_id>/', frontendController.remove_from_cart, name='web_remove_from_cart'),
+    # Cart pages
+    path('cart/', TemplateView.as_view(template_name='cart/view.html'), name='web_cart'),
+    path('checkout/', TemplateView.as_view(template_name='cart/checkout.html'), name='web_checkout'),
     
-    # Checkout & Orders
-    path('checkout/', frontendController.checkout, name='web_checkout'),
-    path('order/place/', frontendController.place_order, name='web_place_order'),
-    path('orders/', frontendController.order_history, name='web_order_history'),
-    path('orders/<int:order_id>/', frontendController.order_detail, name='web_order_detail'),
+    # Order pages
+    path('orders/', TemplateView.as_view(template_name='order/list.html'), name='web_order_history'),
+    path('orders/<int:order_id>/', TemplateView.as_view(template_name='order/detail.html'), name='web_order_detail'),
     
-    # Staff management
-    path('staff/dashboard/', frontendController.staff_dashboard, name='web_staff_dashboard'),
-    path('staff/book/add/', frontendController.staff_add_book, name='web_staff_add_book'),
-    path('staff/book/<int:book_id>/update-stock/', frontendController.staff_update_stock, name='web_staff_update_stock'),
-    path('staff/book/<int:book_id>/delete/', frontendController.staff_delete_book, name='web_staff_delete_book'),
+    # Staff pages
+    path('staff/dashboard/', TemplateView.as_view(template_name='staff/dashboard.html'), name='web_staff_dashboard'),
+    path('staff/orders/', TemplateView.as_view(template_name='staff/orders.html'), name='web_staff_orders'),
     
-    # Recommendations
-    path('recommendations/', frontendController.recommendation_list, name='web_recommendations'),
+    # Recommendations page
+    path('recommendations/', TemplateView.as_view(template_name='recommendation/list.html'), name='web_recommendations'),
+    
+    # AI Recommendations page
+    path('ai-recommendations/', TemplateView.as_view(template_name='recommendation/ai.html'), name='web_ai_recommendations'),
 ]

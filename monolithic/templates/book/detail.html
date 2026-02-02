@@ -1,87 +1,182 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ book.title }}{% endblock %}
+{% block title %}Chi tiết sách{% endblock %}
 
 {% block content %}
-<a href="{% url 'web_home' %}" class="btn btn-secondary" style="margin-bottom: 1rem;">← Quay lại</a>
+<a href="/web/" class="btn btn-secondary" style="margin-bottom: 1rem;">← Quay lại</a>
 
-<div class="card">
-    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem;">
-        <div style="background: #ecf0f1; height: 300px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
-            <span style="font-size: 4rem;">📖</span>
-        </div>
+<div id="alert-container"></div>
+<div id="bookDetail"></div>
+<div id="ratingsSection" class="card" style="margin-top: 2rem;"></div>
+<div id="similarBooksSection" class="card" style="margin-top: 2rem;"></div>
+
+<script>
+const bookId = parseInt(window.location.pathname.split('/')[3]);
+let currentUser = null;
+
+// Kiểm tra user đăng nhập
+function checkAuth() {
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    currentUser = user;
+    return user;
+}
+
+// Tải chi tiết sách
+async function loadBookDetail() {
+    try {
+        const response = await fetch(`/api/books/${bookId}/`);
+        const data = await response.json();
         
-        <div>
-            <h2 style="margin-bottom: 1rem; color: #2c3e50;">{{ book.title }}</h2>
-            <p style="font-size: 1.1rem; color: #7f8c8d; margin-bottom: 1rem;">
-                <strong>Tác giả:</strong> {{ book.author }}
-            </p>
-            <p style="margin-bottom: 1rem;">
-                <strong>Danh mục:</strong> 
-                <span style="background: #3498db; color: white; padding: 0.3rem 0.8rem; border-radius: 4px;">
-                    {{ book.category.name }}
-                </span>
-            </p>
-            <p style="font-size: 1.5rem; color: #27ae60; margin-bottom: 1rem;">
-                <strong>Giá: ${{ book.price }}</strong>
-            </p>
-            <p style="margin-bottom: 1rem; color: {% if book.stock_quantity > 10 %}#27ae60{% elif book.stock_quantity > 0 %}#e67e22{% else %}#e74c3c{% endif %};">
-                <strong>Tồn kho:</strong> {{ book.stock_quantity }} cuốn
-            </p>
-            
-            {% if avg_rating %}
-            <p style="margin-bottom: 1rem; color: #f39c12;">
-                <strong>⭐ Đánh giá:</strong> {{ avg_rating|floatformat:1 }}/5.0 ({{ ratings|length }} đánh giá)
-            </p>
-            {% endif %}
-            
-            <div style="margin-top: 2rem;">
-                {% if book.stock_quantity > 0 %}
-                <form method="POST" action="{% url 'web_add_to_cart' book.id %}">
-                    {% csrf_token %}
-                    <div style="display: flex; gap: 1rem; align-items: center;">
-                        <label>Số lượng:</label>
-                        <input type="number" name="quantity" value="1" min="1" max="{{ book.stock_quantity }}" 
-                               style="width: 80px; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
-                        <button type="submit" class="btn btn-success">🛒 Thêm vào giỏ</button>
+        if (data.success) {
+            renderBookDetail(data.book);
+            loadRatings();
+        } else {
+            showAlert('Không thể tải thông tin sách!', 'danger');
+        }
+    } catch (error) {
+        showAlert('Có lỗi xảy ra!', 'danger');
+        console.error('Load book error:', error);
+    }
+}
+
+// Render chi tiết sách
+function renderBookDetail(book) {
+    const container = document.getElementById('bookDetail');
+    const stockColor = book.stock_quantity > 10 ? '#27ae60' : book.stock_quantity > 0 ? '#e67e22' : '#e74c3c';
+    
+    container.innerHTML = `
+        <div class="card">
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem;">
+                <div style="background: #ecf0f1; height: 300px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+                    <span style="font-size: 4rem;">📖</span>
+                </div>
+                
+                <div>
+                    <h2 style="margin-bottom: 1rem; color: #2c3e50;">${book.title}</h2>
+                    <p style="font-size: 1.1rem; color: #7f8c8d; margin-bottom: 1rem;">
+                        <strong>Tác giả:</strong> ${book.author}
+                    </p>
+                    <p style="margin-bottom: 1rem;">
+                        <strong>Danh mục:</strong> 
+                        <span style="background: #3498db; color: white; padding: 0.3rem 0.8rem; border-radius: 4px;">
+                            ${book.category_name}
+                        </span>
+                    </p>
+                    <p style="font-size: 1.5rem; color: #27ae60; margin-bottom: 1rem;">
+                        <strong>Giá: $${book.price}</strong>
+                    </p>
+                    <p style="margin-bottom: 1rem; color: ${stockColor};">
+                        <strong>Tồn kho:</strong> ${book.stock_quantity} cuốn
+                    </p>
+                    
+                    <div style="margin-top: 2rem;">
+                        ${book.stock_quantity > 0 ? `
+                            <div style="display: flex; gap: 1rem; align-items: center;">
+                                <label>Số lượng:</label>
+                                <input type="number" id="quantity" value="1" min="1" max="${book.stock_quantity}" 
+                                       style="width: 80px; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                                <button onclick="addToCart()" class="btn btn-success">🛒 Thêm vào giỏ</button>
+                            </div>
+                        ` : `
+                            <button class="btn btn-danger" disabled>Hết hàng</button>
+                        `}
                     </div>
-                </form>
-                {% else %}
-                <button class="btn btn-danger" disabled>Hết hàng</button>
-                {% endif %}
+                </div>
             </div>
         </div>
-    </div>
-</div>
+    `;
+}
 
-<div class="card" style="margin-top: 2rem;">
-    <h3 style="margin-bottom: 1rem;">Đánh giá từ khách hàng</h3>
-    {% if ratings %}
-    {% for rating in ratings %}
-    <div style="padding: 1rem; background: #f8f9fa; border-radius: 4px; margin-bottom: 0.5rem;">
-        <strong>{{ rating.customer.name }}</strong> - <span style="color: #f39c12;">⭐ {{ rating.score }}/5.0</span>
-    </div>
-    {% endfor %}
-    {% else %}
-    <p style="color: #7f8c8d;">Chưa có đánh giá.</p>
-    {% endif %}
-</div>
+// Tải đánh giá
+async function loadRatings() {
+    try {
+        const response = await fetch(`/api/books/${bookId}/ratings/`);
+        const data = await response.json();
+        
+        if (data.success) {
+            renderRatings(data.ratings, data.average_rating);
+        }
+    } catch (error) {
+        console.error('Load ratings error:', error);
+    }
+}
 
-{% if similar_books %}
-<div class="card" style="margin-top: 2rem;">
-    <h3 style="margin-bottom: 1rem;">Sách tương tự</h3>
-    <div class="grid">
-        {% for similar in similar_books %}
-        <div style="padding: 1rem; background: #f8f9fa; border-radius: 4px;">
-            <h4 style="margin-bottom: 0.5rem;">{{ similar.title }}</h4>
-            <p style="color: #7f8c8d;">{{ similar.author }}</p>
-            <p style="color: #27ae60;"><strong>${{ similar.price }}</strong></p>
-            <a href="{% url 'web_book_detail' similar.id %}" class="btn btn-secondary" style="margin-top: 0.5rem; width: 100%; text-align: center;">
-                Xem
-            </a>
+// Render đánh giá
+function renderRatings(ratings, avgRating) {
+    const container = document.getElementById('ratingsSection');
+    
+    let html = '<h3 style="margin-bottom: 1rem;">Đánh giá từ khách hàng</h3>';
+    
+    if (avgRating) {
+        html += `<p style="margin-bottom: 1rem; color: #f39c12;">
+            <strong>⭐ Đánh giá trung bình:</strong> ${avgRating.toFixed(1)}/5.0 (${ratings.length} đánh giá)
+        </p>`;
+    }
+    
+    if (ratings.length > 0) {
+        html += ratings.map(r => `
+            <div style="padding: 1rem; background: #f8f9fa; border-radius: 4px; margin-bottom: 0.5rem;">
+                <strong>${r.customer_name}</strong> - <span style="color: #f39c12;">⭐ ${r.score}/5.0</span>
+            </div>
+        `).join('');
+    } else {
+        html += '<p style="color: #7f8c8d;">Chưa có đánh giá.</p>';
+    }
+    
+    container.innerHTML = html;
+}
+
+// Thêm vào giỏ hàng
+async function addToCart() {
+    const user = checkAuth();
+    
+    if (!user || user.type !== 'customer') {
+        showAlert('Vui lòng đăng nhập để thêm vào giỏ hàng!', 'warning');
+        setTimeout(() => window.location.href = '/web/login/', 1500);
+        return;
+    }
+    
+    const quantity = parseInt(document.getElementById('quantity').value);
+    
+    try {
+        const response = await fetch('/api/cart/add/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                customer_id: user.id,
+                book_id: bookId,
+                quantity: quantity
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlert(`Đã thêm ${quantity} cuốn vào giỏ hàng!`, 'success');
+        } else {
+            showAlert(data.message || 'Không thể thêm vào giỏ hàng!', 'danger');
+        }
+    } catch (error) {
+        showAlert('Có lỗi xảy ra!', 'danger');
+        console.error('Add to cart error:', error);
+    }
+}
+
+function showAlert(message, type) {
+    const alertContainer = document.getElementById('alert-container');
+    alertContainer.innerHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert" style="margin-bottom: 1rem;">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
-        {% endfor %}
-    </div>
-</div>
-{% endif %}
+    `;
+    setTimeout(() => { alertContainer.innerHTML = ''; }, 3000);
+}
+
+// Khởi tạo
+checkAuth();
+loadBookDetail();
+</script>
 {% endblock %}
