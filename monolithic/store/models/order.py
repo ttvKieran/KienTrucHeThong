@@ -16,6 +16,15 @@ class CartItem(models.Model):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE)
     book = models.ForeignKey('Book', on_delete=models.CASCADE)
 
+    def get_subtotal(self):
+        """Calculate subtotal for this cart item"""
+        return self.book.price * self.quantity
+    
+    def get_subtotal_with_discount(self, discount_rate=0):
+        """Calculate subtotal with discount applied"""
+        subtotal = self.get_subtotal()
+        return subtotal * (1 - discount_rate)
+
     def __str__(self):
         return f"CartItem {self.id} (Quantity: {self.quantity}) in Cart {self.cart.id} for Book {self.book.id}"
     
@@ -47,6 +56,10 @@ class Order(models.Model):
     staff = models.ForeignKey('Staff', on_delete=models.CASCADE)
     shipping = models.ForeignKey(Shipping, on_delete=models.CASCADE)
     payment = models.ForeignKey(Payment, on_delete=models.CASCADE)
+    
+    original_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # For discount tracking
+    membership_tier_used = models.CharField(max_length=50, null=True, blank=True)  # To track which tier's discount was applied
+    discount_applied = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # To track the discount amount applied
 
     def __str__(self):
         return f"Order {self.id} (Total Price: {self.total_price}, Status: {self.status})"
@@ -57,6 +70,15 @@ class OrderItem(models.Model):
     quantity = models.IntegerField()
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
     book = models.ForeignKey('Book', on_delete=models.CASCADE)
+
+    def get_subtotal(self):
+        """Calculate subtotal for this order item"""
+        return self.book.price * self.quantity
+    
+    def get_subtotal_with_discount(self, discount_rate=0):
+        """Calculate subtotal with discount applied"""
+        subtotal = self.get_subtotal()
+        return subtotal * (1 - discount_rate)
 
     def __str__(self):
         return f"OrderItem {self.id} (Quantity: {self.quantity}) in Order {self.order.id} for Book {self.book.id}"    

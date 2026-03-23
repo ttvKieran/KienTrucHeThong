@@ -35,7 +35,7 @@ def get_order(request, order_id):
             'book_title': item.book.title,
             'quantity': item.quantity,
             'price': float(item.book.price),
-            'subtotal': float(item.book.price * item.quantity)
+            'subtotal': float(item.get_subtotal())
         } for item in order_items]
         
         return JsonResponse({
@@ -111,7 +111,7 @@ def create_order_from_cart(request, customer_id):
             payment = Payment.objects.get(id=payment_id)
             
             # Tính tổng giá
-            total_price = sum(item.book.price * item.quantity for item in cart_items)
+            total_price = sum(item.get_subtotal() for item in cart_items)
             total_price += shipping.fee  # Bây giờ cả 2 đều là Decimal
             
             # Lấy staff (mặc định lấy staff đầu tiên, hoặc từ request)

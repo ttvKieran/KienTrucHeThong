@@ -58,7 +58,7 @@ def register_customer(request):
         customer = Customer.objects.create(
             name=data['name'],
             email=data['email'],
-            password=data['password'],  # Nên hash password trong thực tế
+            password=data['password'],  
             address=address
         )
         
@@ -189,10 +189,10 @@ def get_cart(request, customer_id):
             'book_price': float(item.book.price),
             'book_stock': item.book.stock_quantity,
             'quantity': item.quantity,
-            'subtotal': float(item.book.price * item.quantity)
+            'subtotal': float(item.get_subtotal())
         } for item in cart_items]
         
-        total = sum(item['subtotal'] for item in items)
+        total = sum(float(item.get_subtotal()) for item in cart_items)
         
         return JsonResponse({
             'success': True,
